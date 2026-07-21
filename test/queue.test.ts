@@ -148,6 +148,15 @@ describe("queue engine", () => {
     expect(db.queueCallLog.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ outcome: "FAILOVER" }) }));
   });
 
+  it("does not ring a paused agent (portal pause → engine skips) but still holds the caller", async () => {
+    const q = makeQueue({}, [member("1001", { paused: true })]);
+    db.queue.findUnique.mockResolvedValue(q);
+    await dialQueue("caller1", q, "cr1");
+    await flush();
+    expect(ari.createBridge).toHaveBeenCalled(); // caller joins (joinEmpty default true)
+    expect(ari.originate).not.toHaveBeenCalled(); // the paused agent is not dialed
+  });
+
   it("join-empty=false with no eligible agents fails over immediately (never held)", async () => {
     const q = makeQueue({ joinEmpty: false, failoverType: "EXTENSION", failoverId: "ext-mgr" }, [member("1001", { loggedIn: false })]);
     db.queue.findUnique.mockResolvedValue(q);

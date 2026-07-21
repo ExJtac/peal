@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto-vault";
 import { SIP_WS_URL, SIP_DOMAIN } from "@/lib/env";
 import { Softphone } from "@/features/portal/softphone";
-import { setDnd, setCallForward } from "@/features/portal/actions";
+import { setDnd, setCallForward, setAgentLoggedIn, setAgentPaused } from "@/features/portal/actions";
 import { parseCallForward } from "@/lib/callForward";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,17 @@ export default async function PortalPage() {
     take: 15,
   });
 
+  // Queue-agent status: memberships (uniform state after any portal toggle) + calls answered today.
+  const memberships = await db.queueMember.findMany({ where: { extensionId: ext.id }, include: { queue: true } });
+  const agentLoggedIn = memberships.length > 0 && memberships.every((m) => m.loggedIn);
+  const agentPaused = memberships.some((m) => m.paused);
+  let callsToday = 0;
+  if (memberships.length) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    callsToday = await db.queueCallLog.count({ where: { agentExtensionId: ext.id, enteredAt: { gte: startOfDay }, outcome: "ANSWERED" } });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -44,6 +55,30 @@ export default async function PortalPage() {
           </button>
         </form>
       </div>
+
+      {memberships.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-medium">Queue agent</h2>
+            <span className="muted text-sm">{callsToday} answered today</span>
+          </div>
+          <p className="muted text-sm mb-3">Queues: {memberships.map((m) => m.queue.name).join(", ")}</p>
+          <div className="flex gap-3">
+            <form action={setAgentLoggedIn}>
+              <input type="hidden" name="loggedIn" value={agentLoggedIn ? "" : "on"} />
+              <button className={`btn-ghost ${agentLoggedIn ? "badge-online" : "badge-offline"}`} type="submit">
+                {agentLoggedIn ? "Logged in" : "Logged out"}
+              </button>
+            </form>
+            <form action={setAgentPaused}>
+              <input type="hidden" name="paused" value={agentPaused ? "" : "on"} />
+              <button className={`btn-ghost ${agentPaused ? "badge-warn" : ""}`} type="submit" disabled={!agentLoggedIn}>
+                {agentPaused ? "Paused" : "Available"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {!ext.webrtc && (
         <div className="card">

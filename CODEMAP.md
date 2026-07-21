@@ -86,7 +86,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
 | business-hours · voicemail · ivr | `*/actions.ts` | time conditions · VM transcribe toggle · IVR flow/node/option CRUD |
 | ai-agents | `ai-agents/actions.ts`, `ai-agents/agent-form.tsx` | AI receptionist CRUD (create/update/delete/toggle) + shared form; `AI_AGENT` wired into all destination pickers |
-| portal | `portal/actions.ts`, `portal/softphone.tsx` | user portal: SIP.js WebRTC softphone (client) + DND toggle |
+| portal | `portal/actions.ts`, `portal/softphone.tsx` | user portal: SIP.js WebRTC softphone (client) + DND toggle + **queue-agent login/pause** (`setAgentLoggedIn`/`setAgentPaused` → `QueueMember`, read by the ACD engine) |
 
 ## Call-control engine (`src/telephony/`) — worker-safe
 | File | Responsibility |
