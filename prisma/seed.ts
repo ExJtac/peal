@@ -77,11 +77,14 @@ async function main() {
     create: {
       name: "telnyx",
       provider: "TELNYX",
-      authMode: "IP_AUTH",
+      // REGISTER (credentials) is the NAT-friendly default — the dev VM is double-NAT'd, so an
+      // IP_AUTH trunk could never receive inbound PSTN here. Add your SIP username/password +
+      // registerEnabled, then enable. See TRUNK-SETUP.md.
+      authMode: "REGISTER",
       sipServer: "sip.telnyx.com",
       port: 5060,
       authIps: ["192.76.120.10", "64.16.250.10"],
-      enabled: false, // fill in your Telnyx connection, then enable
+      enabled: false, // fill in your Telnyx SIP credentials, tick registerEnabled, then enable
     },
   });
 

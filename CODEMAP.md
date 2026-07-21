@@ -10,8 +10,12 @@ same step. Consult this FIRST, then open only the mapped file(s).
 > **Real-time AI voice agent** (flagship): a call routed to an `AI_AGENT` destination is answered by
 > Claude over a live externalMedia RTP loop (VAD → streaming STT → Claude tool-use → streaming TTS,
 > with barge-in + transfer/voicemail); mock-default (free), verified end-to-end by `scripts/ai-smoke.ts`.
-> Not yet built: call-center (queues/ACD/conferencing/parking/BLF), non-Fanvil renderers, live Telnyx
-> PSTN. Tags: `[later]` = not built yet.
+> Trunk/PSTN go-live is **prepped, not yet live** (no ITSP account yet): provider-agnostic trunk
+> setup + NAT-correct PJSIP (REGISTER line-support, keepalive tuning, transport-honoring), a live
+> outbound-PSTN smoke, and `TRUNK-SETUP.md`. Going live = pick a REGISTER-capable provider
+> (Telnyx/VoIP.ms — the dev VM is double-NAT'd, so IP-auth providers like Bandwidth need a public host).
+> Not yet built: call-center (queues/ACD/conferencing/parking/BLF), non-Fanvil renderers, live PSTN
+> traffic. Tags: `[later]` = not built yet.
 
 ## Long-running processes (`worker/`)
 | Process | File | What it does |
@@ -62,7 +66,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 |---|---|---|
 | auth | `auth/actions.ts`, `auth/login-form.tsx` | login/logout (seeded admin) |
 | extensions | `extensions/actions.ts` | ext CRUD → `upsertExtensionPjsip` (ps_endpoint/auth/aor) + mailbox |
-| trunks | `trunks/actions.ts`, `trunks/telnyx-template.ts` | BYO trunk → `upsertTrunkPjsip` (endpoint/aor/auth/identify/registration) |
+| trunks | `trunks/actions.ts`, `trunks/provider-templates.ts`, `trunks/trunk-form.tsx` | BYO trunk → `upsertTrunkPjsip` (endpoint/aor/auth/identify/registration). Provider picker (Telnyx/VoIP.ms/Bandwidth/Twilio/Generic) auto-fills SIP settings + NAT-friendliness warnings; see `TRUNK-SETUP.md` |
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
 | provisioning | `provisioning/actions.ts` | Device CRUD; provisioning URL from `provisioning/secrets` |
@@ -134,4 +138,5 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/originate-test.ts` | Phase-0 spine check (server calls a phone → plays demo) |
 | `scripts/smoke-live.ts` | opt-in live ARI + STT/LLM check |
 | `scripts/ai-smoke.ts` | **opt-in live** AI-receptionist end-to-end (routes a real call → agent → verifies media loop + clean teardown) |
-| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **rtp · vad · rtpPacer · realtimeProviders · agentSession** (84 tests, offline) |
+| `scripts/pstn-smoke.ts` | **opt-in live** outbound-PSTN check (`npm run smoke:pstn -- +1NUMBER [trunk]`): originates a real call out a trunk, watches Ringing→Up, prints pass/fail + inbound checklist |
+| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession (103 tests, offline) |

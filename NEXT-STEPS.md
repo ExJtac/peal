@@ -3,6 +3,48 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
+## ▶ RESUME HERE — Telnyx/PSTN trunk go-live PREPPED (no account yet) (2026-07-21)
+The user wants real PSTN (was "Telnyx", now leaning **bandwidth.com** but undecided, **no trunk account
+yet**). The trunk plumbing was already built + correct; this session did the credential-free prep +
+fixed real gaps a live trunk would have hit. **Green: `npm run build` + 103 tests.** Full operator
+runbook in **`TRUNK-SETUP.md`**.
+
+**The decisive finding (verified via a research workflow + Asterisk NAT docs):** the dev VM is Lima
+**vzNAT = double-NAT'd** to the internet with no port-forward, so **auth mode matters more than the
+provider**. A **REGISTER (credentials)** trunk registers OUT to the ITSP and holds a NAT pinhole, so
+inbound PSTN returns down it — works behind NAT. An **IP-auth** trunk (Bandwidth's model, also Skyetel;
+Twilio *inbound*) needs the ITSP to reach a public IP the VM doesn't have. So for the **home/dev test,
+use Telnyx or VoIP.ms (REGISTER)**; Bandwidth is a production/public-host choice.
+
+**Shipped this session (all on `main` after this commit):**
+- **Transport bug fixed** — `psSchema.ts` hardcoded `transport-udp` on the trunk endpoint + registration
+  (a TLS/TCP trunk silently used UDP). Now honors `trunk.transport` (+ `sips:`/`;transport=` URIs).
+- **NAT correctness (from the verified research)** — `registrationRowForTrunk` now sets **`line=yes` +
+  `endpoint=<trunk>` + `expiration=120`** so inbound INVITEs down the REGISTER pinhole bind to the
+  endpoint even with NO identify row (VoIP.ms/generic); AOR **`qualify_frequency` 60→30 + `qualify_timeout=3`**
+  to stay under home-router UDP NAT timeouts. `external_*` correctly left UNSET (symmetric RTP covers it).
+- **Provider-agnostic setup** — `provider-templates.ts` (Telnyx/VoIP.ms/Bandwidth/Twilio/Generic) + a
+  client `trunk-form.tsx` picker that auto-fills each provider's SIP settings and **warns when a provider
+  can't do inbound behind NAT** (Bandwidth, Twilio-inbound). Replaced the single `telnyx-template.ts`.
+- **Live outbound smoke** — `scripts/pstn-smoke.ts` (`npm run smoke:pstn -- +1NUMBER [trunk]`): originates
+  a real call out a trunk, watches Ringing→Up, prints pass/fail + an inbound test checklist.
+- **Seed footgun** — the demo `telnyx` trunk defaulted to `IP_AUTH`; now `REGISTER` (the NAT-friendly path).
+- **`test/psSchema.test.ts`** (new — first coverage of psSchema: trunk + extension ps_* rows) + `TRUNK-SETUP.md`.
+- **Verified:** `npm run build` + 103 tests; authenticated `/trunks` SSR renders the new form (200, all
+  providers, NAT warnings, no error boundary), driven against the live dev server on :3001.
+
+**To actually GO LIVE (needs the user — gated on a trunk account):**
+1. Pick a **REGISTER-capable** provider (Telnyx = instant + test credit; VoIP.ms = cheapest). Create a
+   **Credentials** SIP connection + buy a DID. (Bandwidth only on a public host — see TRUNK-SETUP.md.)
+2. `/trunks` → pick provider → paste SIP username/password → Register + Enabled.
+3. `/dids` add the DID → `/inbound` route it → `/outbound` route (caller-ID = your DID).
+4. In the VM: `asterisk -rx "module reload res_pjsip.so"` then `pjsip show registrations` → Registered.
+5. Test: `npm run smoke:pstn -- +1YOURCELL`; then call the DID inbound.
+
+**Deferred hardening noted by the research (not blocking):** flip the Prisma `Trunk.authMode` default
+IP_AUTH→REGISTER (needs a migration + dev/worker restart — left for when we next migrate); re-verify the
+hard-coded Telnyx `authIps` against current Telnyx docs before relying on IP_AUTH; TLS/SRTP + fail2ban for prod.
+
 ## Where we are ✅ (in-browser calling + AI receptionist LIVE)
 Built, green (`npm run build` + 89 tests), and the ARI + realtime + WebRTC + AI-voice stack is
 verified running in the VM (`npm run smoke:ai` passes end-to-end):
