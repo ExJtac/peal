@@ -3,7 +3,36 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
-## ▶ RESUME HERE — EDIT-existing-record added to every admin list page (2026-07-21)
+## ▶ RESUME HERE — Call forwarding to mobile + Voicemail→email transcription (2026-07-21)
+Two operator features shipped. **Green: `npm run build` + 121 tests.**
+
+**1. Call forwarding to a mobile** (commit — F1). An extension forwards its calls to an external
+number: **Always** (straight to mobile) or **On-no-answer** (ring desk → mobile → voicemail).
+Settable by managers per-extension (`/extensions`) AND by users in their portal (`/portal`). Reuses
+the pre-existing dead `Extension.callForward` Json field (no migration) via `src/lib/callForward.ts`.
+`dialExtension` branches on the mode; extracted `resolveOutboundLeg` (route+guardrails+trunk+CID)
+out of `routeOutbound` so forwarding reuses the exact outbound path. Forwarded leg presents the
+route DID. Pure app-layer (no PJSIP). Applies to DIRECT calls, not ring-group membership.
+
+**2. Voicemail transcript emailed** (commit — F2). Voicemail is now **app-owned (ARI)** instead of
+native `app_voicemail`: `sendToVoicemail` → `src/telephony/voicemail.ts` `startVoicemailCapture`
+(answer → greeting → `ari.record` → on `RecordingFinished`/caller-hangup create `VoicemailMessage`
++ enqueue `TRANSCRIBE_VOICEMAIL` + set MWI; once-guard for the race; native `[vmdirect]` fallback).
+`transcribeVoicemail` now fetches audio over ARI (worker can't read the VM spool) and **emails the
+transcript+summary** to the mailbox's email via a NEW email seam (`src/ai/providers/email/*`,
+`resolveEmail`) — **mock/log default, real SMTP via nodemailer behind `SMTP_*`+`EMAIL_FROM`** (added
+to `.env.example`; `nodemailer` dep). Portal + `/media/voicemail/[id]` gained an audio player.
+Also fixed `originate.ts` `failGroup` to destroy the dead dial bridge before `onNoAnswer` (so ARI
+VM record/greeting runs on a free channel). Attaches the `.wav` when `VoicemailBox.attachAudio`.
+- **No migration** — all VM/Transcript models + `TRANSCRIBE_VOICEMAIL` job kind already existed.
+- **VERIFY LIVE** (needs the ARI daemon + worker restarted with this code): call an ext → no answer
+  → leave a message → a `VoicemailMessage` row + transcript/summary + email (mock logs it; set SMTP
+  to really send) + audio at `/media/voicemail/[id]`. **MWI** needs `res_mwi_external` in the VM
+  (low priority — WebRTC-only home setup; flag if the desk lamp doesn't light).
+- Tests: `callForward`/`callForwardDial` (forwarding branches), `voicemailCapture` (record→row→
+  enqueue→MWI, once-guard, discard-empty, no-box fallback), `transcribeVoicemail` (email iff box.email).
+
+## ▶ EARLIER — EDIT-existing-record added to every admin list page (2026-07-21)
 User: could create + delete records (extensions, routes, DIDs, users, etc.) but **couldn't edit** them.
 Fixed across all ten admin list pages. **Green: `npm run build` + 103 tests.** Pattern (reference
 `src/app/(admin)/outbound/page.tsx`): the "Add" form doubles as an **edit form** via a `?edit=<id>` URL

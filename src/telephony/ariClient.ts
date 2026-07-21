@@ -81,11 +81,26 @@ export const ari = {
       timeout: opts.timeout ?? 30,
       variables: opts.variables,
     }),
-  record: (id: string, name: string, opts: { maxDurationSeconds?: number } = {}) =>
+  record: (
+    id: string,
+    name: string,
+    opts: { maxDurationSeconds?: number; maxSilenceSeconds?: number; terminateOn?: string; beep?: boolean } = {},
+  ) =>
     req<{ name: string }>(
       "POST",
-      `/channels/${id}/record${qs({ name, format: "wav", maxDurationSeconds: opts.maxDurationSeconds, ifExists: "overwrite" })}`,
+      `/channels/${id}/record${qs({
+        name,
+        format: "wav",
+        maxDurationSeconds: opts.maxDurationSeconds,
+        maxSilenceSeconds: opts.maxSilenceSeconds,
+        terminateOn: opts.terminateOn,
+        beep: opts.beep ? "true" : undefined,
+        ifExists: "overwrite",
+      })}`,
     ),
+  /** Publish message-waiting-indicator counts to a mailbox (ARI mailboxes resource → the phone's lamp). */
+  setMwi: (mailbox: string, m: { newMessages: number; oldMessages: number }) =>
+    req<void>("PUT", `/mailboxes/${encodeURIComponent(mailbox)}${qs({ oldMessages: m.oldMessages, newMessages: m.newMessages })}`),
   /**
    * Create an externalMedia channel: Asterisk streams the bridge's audio to `external_host`
    * (our Node UDP RTP server) and injects RTP we send back (symmetric). Added to a mixing

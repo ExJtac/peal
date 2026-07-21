@@ -49,6 +49,28 @@ export function elevenLabsKey(): string | null {
   return process.env.ELEVENLABS_API_KEY || null;
 }
 
+// --- Email (voicemail transcripts) ---
+export const EMAIL_FROM = process.env.EMAIL_FROM ?? "";
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  user?: string;
+  pass?: string;
+  secure: boolean;
+}
+/** SMTP delivery config, or null when unset (→ the email seam falls back to the mock/log provider). */
+export function smtpConfig(): SmtpConfig | null {
+  const host = process.env.SMTP_HOST;
+  if (!host) return null;
+  return {
+    host,
+    port: Number(process.env.SMTP_PORT ?? "587"),
+    user: process.env.SMTP_USER || undefined,
+    pass: process.env.SMTP_PASS || undefined,
+    secure: process.env.SMTP_SECURE === "1" || process.env.SMTP_SECURE === "true",
+  };
+}
+
 /** True when a run without a real key/engine may fall back to deterministic mocks. */
 export function allowMock(): boolean {
   return process.env.ALLOW_MOCK === "1" || process.env.NODE_ENV !== "production";

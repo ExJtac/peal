@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock the boundaries dialExtension/forwardToMobile reach out to, so we can assert WHICH path a
 // call takes (ring desk / forward to mobile / voicemail) without a live ARI/DB. vi.hoisted keeps
 // the mock objects available to the (hoisted) vi.mock factories.
-const { dialEndpoints, ari, db } = vi.hoisted(() => ({
+const { dialEndpoints, ari, db, startVoicemailCapture } = vi.hoisted(() => ({
   dialEndpoints: vi.fn().mockResolvedValue(undefined),
   ari: {
     continueInDialplan: vi.fn().mockResolvedValue(undefined),
@@ -17,10 +17,12 @@ const { dialEndpoints, ari, db } = vi.hoisted(() => ({
     outboundRoute: { findMany: vi.fn() },
     trunk: { findUnique: vi.fn() },
   },
+  startVoicemailCapture: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/telephony/originate", () => ({ dialEndpoints, onDialedAnswered: vi.fn() }));
 vi.mock("@/telephony/ariClient", () => ({ ari }));
 vi.mock("@/lib/db", () => ({ db }));
+vi.mock("@/telephony/voicemail", () => ({ startVoicemailCapture, onRecordingFinished: vi.fn(), onVoicemailCallerGone: vi.fn(), onPlaybackFinished: vi.fn() }));
 vi.mock("@/telephony/callRecord", () => ({
   finalizeCallRecord: vi.fn().mockResolvedValue(undefined),
   createCallRecord: vi.fn().mockResolvedValue("cr1"),
@@ -76,10 +78,10 @@ describe("dialExtension call-forwarding branches", () => {
     expect(lastDial()[1]).toEqual([{ endpoint: "PJSIP/15125550123@telnyx" }]);
   });
 
-  it("no forward + DND → straight to voicemail (native vmdirect), no dial", async () => {
+  it("no forward + DND → straight to voicemail, no dial", async () => {
     await dialExtension("chan1", ext({ dnd: true }), "cr1");
     expect(dialEndpoints).not.toHaveBeenCalled();
-    expect(ari.continueInDialplan).toHaveBeenCalledWith("chan1", "vmdirect", "1001", 1);
+    expect(startVoicemailCapture).toHaveBeenCalledWith("chan1", expect.objectContaining({ number: "1001" }), "cr1");
   });
 
   it("no forward → rings the desk, then voicemail on no-answer", async () => {
@@ -87,7 +89,7 @@ describe("dialExtension call-forwarding branches", () => {
     const [, targets, opts] = lastDial();
     expect(targets).toEqual([{ endpoint: "PJSIP/1001" }]);
     await opts.onNoAnswer(); // simulate desk not answering
-    expect(ari.continueInDialplan).toHaveBeenCalledWith("chan1", "vmdirect", "1001", 1);
+    expect(startVoicemailCapture).toHaveBeenCalledWith("chan1", expect.objectContaining({ number: "1001" }), "cr1");
   });
 
   it("forward-on-no-answer → rings the desk, then the mobile, then voicemail", async () => {
@@ -99,6 +101,6 @@ describe("dialExtension call-forwarding branches", () => {
     expect(dialEndpoints.mock.calls[1][1]).toEqual([{ endpoint: "PJSIP/15125550123@telnyx" }]);
     // mobile doesn't answer → voicemail
     await dialEndpoints.mock.calls[1][2].onNoAnswer();
-    expect(ari.continueInDialplan).toHaveBeenCalledWith("chan1", "vmdirect", "1001", 1);
+    expect(startVoicemailCapture).toHaveBeenCalledWith("chan1", expect.objectContaining({ number: "1001" }), "cr1");
   });
 });

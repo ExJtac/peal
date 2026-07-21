@@ -65,6 +65,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `/portal` | `app/portal/page.tsx` (+ `voicemail/`) | **User portal**: in-browser WebRTC softphone, call history, voicemail, DND |
 | `/provision/[mac]` | `app/provision/[mac]/route.ts` | Serve per-MAC phone config (tokened) |
 | `/media/recording/[id]` | `app/media/recording/[id]/route.ts` | Stream a call recording via ARI (Admin/Manager) |
+| `/media/voicemail/[id]` | `app/media/voicemail/[id]/route.ts` | Stream a voicemail recording via ARI (mailbox owner or Admin/Manager) |
 | `/api/health` | `app/api/health/route.ts` | Health JSON (reads SystemStatus) |
 
 ## Features (`src/features/<feature>/`) — UI + Server Actions
@@ -94,6 +95,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `ivrInterpreter.ts` | DB IvrFlow/IvrNode state machine (DTMF-driven, no generated dialplan) |
 | `originate.ts` | dial-group primitive (bridge + first-answer-wins ring + failover) |
 | `callSession.ts` · `callRecord.ts` · `recording.ts` · `status.ts` · `events.ts` | in-memory registry · CDR create/finalize · **call recording + SUMMARIZE_CALL enqueue** · SystemStatus · typed shapes |
+| `voicemail.ts` | **app-owned voicemail capture over ARI** (greeting → record → `VoicemailMessage` row → TRANSCRIBE_VOICEMAIL enqueue → MWI); `RecordingFinished`/caller-hangup once-guard; native `[vmdirect]` fallback. `sendToVoicemail` delegates here |
 | `realtime/{odbcPool,psSchema,psWriter,reconcile}.ts` | Prisma truth → Asterisk ps_* tables (`asterisk` schema) + reconcile |
 
 ## Real-time AI receptionist (`src/telephony/realtime-media/`) — the flagship voice agent
@@ -120,7 +122,8 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 ## Async AI (`src/ai/`) — worker-safe
 | File | Responsibility |
 |---|---|
-| `stages/transcribeVoicemail.ts` · `stages/summarizeCall.ts` | STT → Claude summary → DB |
+| `stages/transcribeVoicemail.ts` · `stages/summarizeCall.ts` | STT → Claude summary → DB. VM stage fetches audio via ARI + **emails the transcript** (`resolveEmail`) to the mailbox owner |
+| `providers/email/{emailProvider,mockEmailProvider,smtpEmailProvider,resolve}.ts` | email seam (`resolveEmail`) — mock/log default, real SMTP via nodemailer behind `SMTP_*`/`EMAIL_FROM` |
 | `providers/stt/{sttProvider,mockSttProvider,deepgramSttProvider,resolve}.ts` | batch STT seam (mock default, Deepgram) |
 | `providers/llm/{llmProvider,mockLlmProvider,anthropicLlmProvider,resolve}.ts` | batch Claude summary seam (mock default) |
 | `providers/stt/{streamingSttProvider,mockStreamingStt,deepgramStreamingStt}.ts` | **streaming** STT for the live agent (`resolveStreamingStt`) — mock default, Deepgram live WS |

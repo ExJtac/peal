@@ -8,6 +8,7 @@ import { feedDtmf, endIvr } from "./ivrInterpreter";
 import { getSession, deleteSession, activeChannelCount } from "./callSession";
 import { finalizeCallRecord } from "./callRecord";
 import { enqueueCallSummary } from "./recording";
+import { onRecordingFinished, onPlaybackFinished, onVoicemailCallerGone } from "./voicemail";
 import { setStatus } from "./status";
 import { agentByCaller, agentByEm } from "./realtime-media/agentRegistry";
 
@@ -25,6 +26,12 @@ export async function dispatch(ev: AriEvent): Promise<void> {
         else feedDtmf(ev.channel.id, ev.digit);
         break;
       }
+      case "RecordingFinished":
+        await onRecordingFinished(ev.recording).catch(() => {});
+        break;
+      case "PlaybackFinished":
+        if (ev.playback?.id) onPlaybackFinished(ev.playback.id);
+        break;
       case "ChannelDestroyed": {
         const id = ev.channel?.id;
         if (!id) break;
@@ -32,6 +39,7 @@ export async function dispatch(ev: AriEvent): Promise<void> {
         // reroute BEFORE the generic session finalize below.
         const agent = agentByCaller(id) ?? agentByEm(id);
         if (agent) await agent.handleChannelGone(id).catch(() => {});
+        await onVoicemailCallerGone(id).catch(() => {}); // finalize a voicemail if the caller hung up mid-message
         await onDialedEnded(id).catch(() => {});
         await onCallerEnded(id).catch(() => {});
         endIvr(id);

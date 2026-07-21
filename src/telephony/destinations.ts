@@ -10,6 +10,7 @@ import { putSession, activeOutboundCount } from "./callSession";
 import { decideGuardrail } from "@/lib/guardrail";
 import { classifyDial, digitsOnly, applyDialTransform, matchDialPattern, toE164 } from "@/lib/phone";
 import { parseCallForward } from "@/lib/callForward";
+import { startVoicemailCapture } from "./voicemail";
 import { resolveBusinessHours, type HoursRule } from "@/lib/businessHours";
 import type { DestinationType, Extension, RingGroup, BusinessHours } from "@prisma/client";
 
@@ -47,11 +48,9 @@ async function playThenHangup(channelId: string, sound: string): Promise<void> {
 // --- voicemail / extensions -------------------------------------------------
 
 export async function sendToVoicemail(callerChannelId: string, ext: Extension, callRecordId: string): Promise<void> {
-  await finalizeCallRecord(callRecordId, { disposition: "VOICEMAIL" }).catch(() => {});
-  // Hand back to the native dialplan so app_voicemail records it (keeps MWI + VM-to-email).
-  await ari.continueInDialplan(callerChannelId, "vmdirect", ext.number, 1).catch(async () => {
-    await ari.hangup(callerChannelId).catch(() => {});
-  });
+  // App-owned capture over ARI (records → DB row → transcribe → email + portal audio). Finalizes
+  // the CallRecord as VOICEMAIL itself; falls back to the native [vmdirect] dialplan on error.
+  return startVoicemailCapture(callerChannelId, ext, callRecordId);
 }
 
 export async function dialExtension(callerChannelId: string, ext: Extension, callRecordId: string): Promise<void> {

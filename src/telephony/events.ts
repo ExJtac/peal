@@ -17,6 +17,15 @@ export interface AriBridge {
   channels: string[];
 }
 
+export interface LiveRecording {
+  name: string;
+  format?: string;
+  state?: string; // "recording" | "done" | "failed" | "canceled"
+  duration?: number; // seconds — present on RecordingFinished
+  target_uri?: string; // "channel:<id>"
+  cause?: string;
+}
+
 export interface AriEvent {
   type: string;
   application?: string;
@@ -28,6 +37,7 @@ export interface AriEvent {
   cause?: number;
   cause_txt?: string;
   playback?: { id: string; state: string };
+  recording?: LiveRecording;
   [k: string]: unknown;
 }
 

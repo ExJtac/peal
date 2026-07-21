@@ -34,6 +34,8 @@ export default async function PortalVoicemailPage() {
               )}
               {m.aiSummary && <p className="text-sm mb-2">{m.aiSummary}</p>}
               {m.transcript?.text && <p className="muted text-sm">{m.transcript.text}</p>}
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <audio className="mt-2 w-full max-w-md" controls preload="none" src={`/media/voicemail/${m.id}`} />
               <div className="muted text-xs mt-2">{m.durationSec}s{m.read ? "" : " · new"}</div>
             </div>
           ))}

@@ -123,6 +123,11 @@ async function failGroup(callerChannelId: string): Promise<void> {
   if (!group) return;
   groups.delete(callerChannelId);
   if (group.timer) clearTimeout(group.timer);
+  // Cancel any still-ringing legs and tear down the (now dead) dial bridge, so onNoAnswer — e.g.
+  // ARI voicemail record/greeting, or a forward re-dial — runs on a free caller channel, not one
+  // stranded in a lingering mixing bridge.
+  for (const other of group.outstanding) ari.hangup(other).catch(() => {});
+  await ari.destroyBridge(group.bridgeId).catch(() => {});
   if (group.onNoAnswer) await group.onNoAnswer().catch(() => {});
   else await ari.hangup(callerChannelId).catch(() => {});
 }
