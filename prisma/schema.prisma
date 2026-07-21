@@ -48,6 +48,7 @@ enum SipTransport {
 enum DestinationType {
   EXTENSION
   RING_GROUP
+  QUEUE
   IVR
   VOICEMAIL
   TIME_CONDITION
@@ -61,6 +62,23 @@ enum RingStrategy {
   HUNT
   MEMORY_HUNT
   RANDOM
+}
+
+// Call-queue (ACD) agent-selection strategy. RINGALL rings every available agent at once;
+// the others ring one agent at a time in a strategy-specific order.
+enum QueueStrategy {
+  RINGALL
+  LINEAR // by member `order` (hunt), always from the top
+  FEWEST_CALLS // agent who has taken the fewest calls this session
+  LEAST_RECENT // agent idle the longest
+  RANDOM
+}
+
+enum QueueCallOutcome {
+  ANSWERED
+  ABANDONED // caller hung up while waiting
+  TIMEOUT // exceeded maxWaitSeconds → timeout destination
+  FAILOVER // no agents / all attempts failed → failover destination
 }
 
 enum IvrNodeType {
@@ -179,6 +197,7 @@ model Extension {
   devices            Device[]
   mailbox            VoicemailBox?
   ringGroupMembers   RingGroupMember[]
+  queueMembers       QueueMember[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 }
@@ -348,6 +367,81 @@ model RingGroupMember {
   order       Int       @default(0)
 
   @@unique([ringGroupId, extensionId])
+}
+
+// Call queue (ACD). Callers wait on hold (Asterisk MOH) while the engine (src/telephony/queue.ts)
+// rings agents by `strategy`. Unlike a ring group (fire-and-forget), a queue holds a waiting list
+// and re-dials as agents free up. A destination (inbound route / IVR option / etc.) points here.
+model Queue {
+  id                String           @id @default(cuid())
+  number            String           @unique
+  name              String
+  strategy          QueueStrategy    @default(RINGALL)
+  mohClass          String           @default("default") // musiconhold.conf class for hold audio
+  joinEmpty         Boolean          @default(true) // may a caller join when no agent is available?
+  leaveWhenEmpty    Boolean          @default(false) // eject waiting callers if every agent logs out
+  agentRingSeconds  Int              @default(20) // how long to ring an agent before moving on
+  wrapUpSeconds     Int              @default(0) // post-call cooldown before an agent rings again
+  maxWaitSeconds    Int              @default(0) // 0 = unlimited; else → timeout destination
+  announcePosition  Boolean          @default(true)
+  announceHoldTime  Boolean          @default(false)
+  announceFrequency Int              @default(30) // seconds between hold announcements
+  timeoutType       DestinationType? // where a caller goes after maxWaitSeconds
+  timeoutId         String?
+  failoverType      DestinationType? // where a caller goes when the queue can't serve them
+  failoverId        String?
+  members           QueueMember[]
+  callLogs          QueueCallLog[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model QueueMember {
+  id          String    @id @default(cuid())
+  queueId     String
+  queue       Queue     @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  extensionId String
+  extension   Extension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+  penalty     Int       @default(0) // lower penalty rings first
+  order       Int       @default(0) // LINEAR strategy order
+  paused      Boolean   @default(false) // agent temporarily not taking queue calls
+  loggedIn    Boolean   @default(true) // agent logged into the queue
+
+  @@unique([queueId, extensionId])
+}
+
+// One row per call that entered a queue — the source for wallboard stats + historical reporting.
+model QueueCallLog {
+  id               String            @id @default(cuid())
+  queueId          String
+  queue            Queue             @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  callRecordId     String? // links to the CallRecord (not a FK — CallRecord may finalize independently)
+  callerNumber     String?
+  enteredAt        DateTime          @default(now())
+  answeredAt       DateTime?
+  endedAt          DateTime?
+  waitSec          Int               @default(0)
+  talkSec          Int               @default(0)
+  agentExtensionId String?
+  position         Int? // queue position at answer time
+  outcome          QueueCallOutcome?
+
+  @@index([queueId, enteredAt])
+}
+
+// Live wallboard snapshot (one row per queue). Written by the ARI daemon on every state change,
+// read (polled) by the wallboard UI — same daemon-writes / UI-reads pattern as SystemStatus.
+model QueueStatus {
+  queueId         String   @id
+  waiting         Int      @default(0)
+  longestWaitSec  Int      @default(0)
+  agentsAvailable Int      @default(0)
+  agentsOnCall    Int      @default(0)
+  agentsPaused    Int      @default(0)
+  answeredToday   Int      @default(0)
+  abandonedToday  Int      @default(0)
+  avgWaitSec      Int      @default(0)
+  updatedAt       DateTime @updatedAt
 }
 
 model IvrFlow {

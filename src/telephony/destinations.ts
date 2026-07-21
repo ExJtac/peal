@@ -146,6 +146,7 @@ export async function resolveDestination(
       const { startAgentSession } = await import("./realtime-media/agentSession");
       return startAgentSession(callerChannelId, id, callRecordId);
     }
+    case "QUEUE": // ACD engine wired in the next commit — until then a QUEUE destination hangs up.
     case "HANGUP":
     case "EXTERNAL":
     default:
