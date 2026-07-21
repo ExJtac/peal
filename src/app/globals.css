@@ -57,6 +57,13 @@ body {
     background: var(--surface);
     border: 1px solid var(--border);
   }
+  /* The Add/Edit form card tints teal (+ a left accent bar) while editing an existing
+     record, so it's obvious you're editing rather than adding. Pairs with .row-editing. */
+  .card-editing {
+    background: rgba(45, 212, 191, 0.06);
+    border-color: rgba(45, 212, 191, 0.5);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
 
   .input, .select, .textarea {
     @apply w-full rounded-lg px-3 py-2 text-sm outline-none;

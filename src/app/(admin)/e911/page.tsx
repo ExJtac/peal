@@ -19,7 +19,7 @@ export default async function E911Page({ searchParams }: { searchParams: Promise
         Kari&apos;s Law &amp; RAY BAUM&apos;S Act: a DID can&apos;t be emergency-enabled until its dispatchable location is validated with the carrier.
       </p>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit location" : "Add location"}</h2>
         {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
         <form key={editing?.id ?? "new"} action={saveLocation} className="grid grid-cols-2 gap-4">

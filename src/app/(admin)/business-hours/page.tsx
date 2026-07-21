@@ -39,7 +39,7 @@ export default async function BusinessHoursPage({ searchParams }: { searchParams
     <div>
       <h1 className="text-xl font-semibold mb-6">Business hours</h1>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit business hours" : "Add business hours"}</h2>
         <p className="muted text-sm mb-4">
           {"In-hours goes to the 'in' destination, otherwise the 'else' destination (e.g. an after-hours IVR or voicemail)."}

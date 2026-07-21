@@ -14,7 +14,7 @@ export default async function ExtensionsPage({ searchParams }: { searchParams: P
     <div>
       <h1 className="text-xl font-semibold mb-6">Extensions</h1>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit extension" : "Add extension"}</h2>
         {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
         <form key={editing?.id ?? "new"} action={saveExtension} className="grid grid-cols-2 gap-4">

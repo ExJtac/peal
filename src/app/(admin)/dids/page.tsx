@@ -18,7 +18,7 @@ export default async function DidsPage({ searchParams }: { searchParams: Promise
     <div>
       <h1 className="text-xl font-semibold mb-6">DIDs</h1>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit DID" : "Add DID"}</h2>
         {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
         <form key={editing?.id ?? "new"} action={saveDid} className="grid grid-cols-2 gap-4">

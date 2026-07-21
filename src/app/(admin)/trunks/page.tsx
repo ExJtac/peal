@@ -36,7 +36,7 @@ export default async function TrunksPage({ searchParams }: { searchParams: Promi
     <div>
       <h1 className="text-xl font-semibold mb-6">Trunks</h1>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit trunk" : "Add trunk"}</h2>
         <p className="muted text-sm mb-4">
           Pick your provider to pre-fill its SIP settings, then supply your own credentials. Behind NAT

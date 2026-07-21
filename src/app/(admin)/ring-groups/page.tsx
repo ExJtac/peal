@@ -19,7 +19,7 @@ export default async function RingGroupsPage({ searchParams }: { searchParams: P
     <div>
       <h1 className="text-xl font-semibold mb-6">Ring groups</h1>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit ring group" : "Add ring group"}</h2>
         {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
         <form key={editing?.id ?? "new"} action={saveRingGroup} className="grid grid-cols-2 gap-4">

@@ -14,7 +14,7 @@ export default async function InboundRoutesPage({ searchParams }: { searchParams
     <div>
       <h1 className="text-xl font-semibold mb-6">Inbound routes</h1>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit inbound route" : "Add inbound route"}</h2>
         {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
         <form key={editing?.id ?? "new"} action={saveInboundRoute} className="grid grid-cols-2 gap-4">

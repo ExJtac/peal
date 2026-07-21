@@ -26,7 +26,7 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
         Fanvil-first; the same MAC-keyed URL works for any supported vendor.
       </p>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit device" : "Add device"}</h2>
         {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
         <form key={editing?.id ?? "new"} action={saveDevice} className="grid grid-cols-2 gap-4">

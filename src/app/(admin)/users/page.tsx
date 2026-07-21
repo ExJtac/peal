@@ -22,7 +22,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         Link a User to an extension so they can call from the browser.
       </p>
 
-      <div className="card mb-8">
+      <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit user" : "Add user"}</h2>
         {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
         <form key={editing?.id ?? "new"} action={saveUser} className="grid grid-cols-2 gap-4">
