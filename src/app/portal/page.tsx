@@ -75,6 +75,7 @@ export default async function PortalPage() {
                 <th>From</th>
                 <th>To</th>
                 <th>Sec</th>
+                <th>AI summary</th>
               </tr>
             </thead>
             <tbody>
@@ -85,6 +86,7 @@ export default async function PortalPage() {
                   <td>{c.fromNumber ?? "—"}</td>
                   <td>{c.toNumber ?? "—"}</td>
                   <td>{c.billSec}</td>
+                  <td className="muted text-xs">{c.aiSummary ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

@@ -12,6 +12,7 @@ const schema = z.object({
   defaultCallerId: z.string().trim().optional().or(z.literal("")),
   sipDomain: z.string().trim().min(1),
   externalIp: z.string().trim().optional().or(z.literal("")),
+  recordCalls: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
 });
 
 export async function saveSettings(formData: FormData): Promise<void> {
@@ -24,6 +25,7 @@ export async function saveSettings(formData: FormData): Promise<void> {
     defaultCallerId: data.defaultCallerId || null,
     sipDomain: data.sipDomain,
     externalIp: data.externalIp || null,
+    recordCalls: data.recordCalls,
   };
 
   await db.companySettings.upsert({

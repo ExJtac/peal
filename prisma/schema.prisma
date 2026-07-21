@@ -515,6 +515,7 @@ model CompanySettings {
   defaultCallerId String?
   sipDomain       String   @default("pbx.local")
   externalIp      String?
+  recordCalls     Boolean  @default(false)
   updatedAt       DateTime @updatedAt
 }
 

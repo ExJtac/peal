@@ -55,7 +55,7 @@ to the VM's LAN IP, add the phone by MAC in `/provisioning`, point its auto-prov
 shown `/provision/<mac>.cfg?token=…`.
 
 ## Deferred (chosen not-today)
-Call-center (queues/ACD, call recording + playback, conferencing, parking, BLF/presence),
+Call-center (queues/ACD, conferencing, parking, BLF/presence),
 real-time AI voice agent (Phase 3), SIP/toll-fraud hardening polish (fail2ban, TLS/SRTP),
 extension/ring-group edit pages, per-model Fanvil verification.
 

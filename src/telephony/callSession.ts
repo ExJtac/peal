@@ -12,6 +12,7 @@ export interface CallSession {
   ivrNodeId?: string;
   retries: number;
   dialedChannelId?: string;
+  recordingName?: string;
   createdAt: number;
 }
 

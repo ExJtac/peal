@@ -50,6 +50,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `/ivr` | `app/(admin)/ivr/page.tsx` (+ `[id]`) | IVR / auto-attendant builder (flows, nodes, digit options) |
 | `/portal` | `app/portal/page.tsx` (+ `voicemail/`) | **User portal**: in-browser WebRTC softphone, call history, voicemail, DND |
 | `/provision/[mac]` | `app/provision/[mac]/route.ts` | Serve per-MAC phone config (tokened) |
+| `/media/recording/[id]` | `app/media/recording/[id]/route.ts` | Stream a call recording via ARI (Admin/Manager) |
 | `/api/health` | `app/api/health/route.ts` | Health JSON (reads SystemStatus) |
 
 ## Features (`src/features/<feature>/`) — UI + Server Actions
@@ -77,7 +78,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `destinations.ts` | resolvers: extension, ring-group, IVR, voicemail, time-condition + inbound/outbound/internal entry |
 | `ivrInterpreter.ts` | DB IvrFlow/IvrNode state machine (DTMF-driven, no generated dialplan) |
 | `originate.ts` | dial-group primitive (bridge + first-answer-wins ring + failover) |
-| `callSession.ts` · `callRecord.ts` · `status.ts` · `events.ts` | in-memory registry · CDR create/finalize · SystemStatus writer · typed shapes |
+| `callSession.ts` · `callRecord.ts` · `recording.ts` · `status.ts` · `events.ts` | in-memory registry · CDR create/finalize · **call recording + SUMMARIZE_CALL enqueue** · SystemStatus · typed shapes |
 | `realtime/{odbcPool,psSchema,psWriter,reconcile}.ts` | Prisma truth → Asterisk ps_* tables (`asterisk` schema) + reconcile |
 
 ## Provisioning (`src/provisioning/`)

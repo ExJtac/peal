@@ -7,6 +7,7 @@ import { onDialedEnded, onCallerEnded } from "./originate";
 import { feedDtmf, endIvr } from "./ivrInterpreter";
 import { getSession, deleteSession, activeChannelCount } from "./callSession";
 import { finalizeCallRecord } from "./callRecord";
+import { enqueueCallSummary } from "./recording";
 import { setStatus } from "./status";
 
 export async function dispatch(ev: AriEvent): Promise<void> {
@@ -27,6 +28,7 @@ export async function dispatch(ev: AriEvent): Promise<void> {
         const s = getSession(id);
         if (s) {
           await finalizeCallRecord(s.callRecordId, { hangupCause: (ev.cause_txt as string) ?? undefined }).catch(() => {});
+          if (s.recordingName) await enqueueCallSummary(s.callRecordId).catch(() => {});
           deleteSession(id);
         }
         break;

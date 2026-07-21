@@ -6,8 +6,9 @@
 // calls onDialedAnswered → we add it to the bridge and hang up the losing legs. If every leg
 // fails/times out we invoke onNoAnswer (usually voicemail).
 import { ari } from "./ariClient";
-import { putPendingDial, takePendingDial, getSession } from "./callSession";
+import { putPendingDial, takePendingDial, getSession, updateSession } from "./callSession";
 import { markAnswered } from "./callRecord";
+import { recordingEnabled, startBridgeRecording } from "./recording";
 
 interface DialGroup {
   callerChannelId: string;
@@ -83,7 +84,13 @@ export async function onDialedAnswered(dialedChannelId: string): Promise<void> {
   await ari.addToBridge(group.bridgeId, dialedChannelId).catch(() => {});
 
   const s = getSession(pd.callerChannelId);
-  if (s) await markAnswered(s.callRecordId);
+  if (s) {
+    await markAnswered(s.callRecordId);
+    if (await recordingEnabled()) {
+      const name = await startBridgeRecording(group.bridgeId, s.callRecordId);
+      if (name) updateSession(s.channelId, { recordingName: name });
+    }
+  }
 
   for (const other of group.outstanding) {
     if (other !== dialedChannelId) ari.hangup(other).catch(() => {});

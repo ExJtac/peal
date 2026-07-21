@@ -94,4 +94,18 @@ export const ari = {
     req<void>("POST", `/bridges/${bridgeId}/addChannel${qs({ channel: channelId })}`),
   destroyBridge: (bridgeId: string) => req<void>("DELETE", `/bridges/${bridgeId}`),
   startMoh: (bridgeId: string) => req<void>("POST", `/bridges/${bridgeId}/moh`),
+  recordBridge: (bridgeId: string, name: string) =>
+    req<{ name: string }>(
+      "POST",
+      `/bridges/${bridgeId}/record${qs({ name, format: "wav", ifExists: "overwrite", beep: "false" })}`,
+    ),
+
+  // --- recordings ---
+  async getStoredRecordingFile(name: string): Promise<Buffer> {
+    const res = await fetch(`${ARI_HTTP_URL}/ari/recordings/stored/${encodeURIComponent(name)}/file`, {
+      headers: { Authorization: authHeader() },
+    });
+    if (!res.ok) throw new AriError(`ARI GET recording ${name} → ${res.status}`, res.status);
+    return Buffer.from(await res.arrayBuffer());
+  },
 };

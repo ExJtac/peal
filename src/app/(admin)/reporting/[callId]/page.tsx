@@ -48,7 +48,16 @@ export default async function CallDetailPage({ params }: { params: Promise<{ cal
           <Row label="Billable (sec)" value={call.billSec} />
           <Row label="Unique ID" value={<span className="font-mono">{call.uniqueId ?? "—"}</span>} />
           <Row label="Linked ID" value={<span className="font-mono">{call.linkedId ?? "—"}</span>} />
-          <Row label="Recording path" value={<span className="font-mono">{call.recordingPath ?? "—"}</span>} />
+          <Row
+            label="Recording"
+            value={
+              call.recordingPath ? (
+                <audio controls preload="none" src={`/media/recording/${call.id}`} className="w-full max-w-xs" />
+              ) : (
+                "—"
+              )
+            }
+          />
           <Row
             label="Guardrail"
             value={
