@@ -4,6 +4,7 @@
 import type { AriEvent } from "./events";
 import { onStasisStart } from "./routing";
 import { onDialedEnded, onCallerEnded } from "./originate";
+import { onQueueCallerEnded, onQueueAgentEnded, onQueuePlaybackFinished } from "./queue";
 import { feedDtmf, endIvr } from "./ivrInterpreter";
 import { getSession, deleteSession, activeChannelCount } from "./callSession";
 import { finalizeCallRecord } from "./callRecord";
@@ -30,7 +31,10 @@ export async function dispatch(ev: AriEvent): Promise<void> {
         await onRecordingFinished(ev.recording).catch(() => {});
         break;
       case "PlaybackFinished":
-        if (ev.playback?.id) onPlaybackFinished(ev.playback.id);
+        if (ev.playback?.id) {
+          onPlaybackFinished(ev.playback.id); // voicemail greeting waiter
+          onQueuePlaybackFinished(ev.playback.id); // queue announcement waiter (ids are unique)
+        }
         break;
       case "ChannelDestroyed": {
         const id = ev.channel?.id;
@@ -42,6 +46,8 @@ export async function dispatch(ev: AriEvent): Promise<void> {
         await onVoicemailCallerGone(id).catch(() => {}); // finalize a voicemail if the caller hung up mid-message
         await onDialedEnded(id).catch(() => {});
         await onCallerEnded(id).catch(() => {});
+        await onQueueCallerEnded(id).catch(() => {}); // queue caller abandoned / connected caller hung up
+        await onQueueAgentEnded(id).catch(() => {}); // queue agent leg ended (ring no-answer / on-call hangup)
         endIvr(id);
         const s = getSession(id);
         if (s) {

@@ -3,6 +3,7 @@
 // downstream is our own routing logic.
 import { ari } from "./ariClient";
 import { onDialedAnswered } from "./originate";
+import { onAgentAnswered } from "./queue";
 import { routeInbound, routeInternal, routeOutbound } from "./destinations";
 import type { AriEvent } from "./events";
 
@@ -21,6 +22,9 @@ export async function onStasisStart(event: AriEvent): Promise<void> {
     case "dialed":
       // A leg we originated just answered — hand to the dial-group bridger.
       return onDialedAnswered(channel.id);
+    case "queued":
+      // A queue agent leg answered — hand to the ACD engine to bridge it with the waiting caller.
+      return onAgentAnswered(channel.id);
     case "internal":
       return routeInternal(channel.id, callerNum, args[1] ?? channel.dialplan?.exten ?? "");
     case "inbound":

@@ -138,7 +138,9 @@ export const ari = {
   removeFromBridge: (bridgeId: string, channelId: string) =>
     req<void>("POST", `/bridges/${bridgeId}/removeChannel${qs({ channel: channelId })}`),
   destroyBridge: (bridgeId: string) => req<void>("DELETE", `/bridges/${bridgeId}`),
-  startMoh: (bridgeId: string) => req<void>("POST", `/bridges/${bridgeId}/moh`),
+  startMoh: (bridgeId: string, mohClass?: string) =>
+    req<void>("POST", `/bridges/${bridgeId}/moh${qs({ mohClass })}`),
+  stopMoh: (bridgeId: string) => req<void>("DELETE", `/bridges/${bridgeId}/moh`),
   recordBridge: (bridgeId: string, name: string) =>
     req<{ name: string }>(
       "POST",
