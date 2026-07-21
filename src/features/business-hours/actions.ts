@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 
-const destination = z.enum(["EXTENSION", "RING_GROUP", "QUEUE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"]);
+const destination = z.enum(["EXTENSION", "RING_GROUP", "QUEUE", "CONFERENCE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"]);
 const bool = z.preprocess((v) => v === "on" || v === "true", z.boolean());
 const commaList = (s?: string) => (s ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 

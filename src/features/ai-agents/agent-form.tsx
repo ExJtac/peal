@@ -7,6 +7,7 @@ const DEST_TYPES: [string, string][] = [
   ["EXTENSION", "Extension"],
   ["RING_GROUP", "Ring group"],
   ["QUEUE", "Queue"],
+  ["CONFERENCE", "Conference"],
   ["IVR", "IVR"],
   ["VOICEMAIL", "Voicemail"],
   ["TIME_CONDITION", "Time condition"],

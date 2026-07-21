@@ -156,6 +156,14 @@ export async function resolveDestination(
       }
       break;
     }
+    case "CONFERENCE": {
+      const conf = id ? await db.conference.findUnique({ where: { id } }) : null;
+      if (conf) {
+        const { joinConference } = await import("./conference");
+        return joinConference(callerChannelId, conf, callRecordId);
+      }
+      break;
+    }
     case "HANGUP":
     case "EXTERNAL":
     default:
@@ -216,6 +224,11 @@ export async function routeInternal(callerChannelId: string, callerNum: string, 
   if (rg) {
     const callRecordId = await beginInternal(callerChannelId, callerNum, dialed);
     return resolveDestination("RING_GROUP", rg.id, callerChannelId, callRecordId);
+  }
+  const conf = await db.conference.findUnique({ where: { number: dialed }, select: { id: true } });
+  if (conf) {
+    const callRecordId = await beginInternal(callerChannelId, callerNum, dialed);
+    return resolveDestination("CONFERENCE", conf.id, callerChannelId, callRecordId);
   }
   // Not internal → treat as an external/outbound call.
   return routeOutbound(callerChannelId, callerNum, dialed);

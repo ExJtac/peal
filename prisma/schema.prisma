@@ -49,6 +49,7 @@ enum DestinationType {
   EXTENSION
   RING_GROUP
   QUEUE
+  CONFERENCE
   IVR
   VOICEMAIL
   TIME_CONDITION
@@ -427,6 +428,19 @@ model QueueCallLog {
   outcome          QueueCallOutcome?
 
   @@index([queueId, enteredAt])
+}
+
+// Meet-me conference room. Callers dialing (or routed to) its number join a persistent named
+// mixing bridge (src/telephony/conference.ts). MOH-when-alone + optional recording.
+model Conference {
+  id           String   @id @default(cuid())
+  number       String   @unique
+  name         String
+  mohWhenAlone Boolean  @default(true) // play hold music to a lone participant
+  record       Boolean  @default(false)
+  maxMembers   Int      @default(20)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 // Live wallboard snapshot (one row per queue). Written by the ARI daemon on every state change,

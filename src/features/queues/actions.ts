@@ -21,7 +21,7 @@ function parseMembers(s?: string): { number: string; penalty: number }[] {
   return out;
 }
 
-const DEST = ["EXTENSION", "RING_GROUP", "QUEUE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"] as const;
+const DEST = ["EXTENSION", "RING_GROUP", "QUEUE", "CONFERENCE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"] as const;
 const checkbox = z.preprocess((v) => v === "on" || v === true, z.boolean());
 
 const schema = z.object({

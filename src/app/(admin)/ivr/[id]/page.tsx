@@ -7,7 +7,7 @@ import { updateFlow, addNode, deleteNode, addOption, deleteOption } from "@/feat
 export const dynamic = "force-dynamic";
 
 const NODE_TYPES = ["MENU", "PLAY", "COLLECT", "TRANSFER", "VOICEMAIL", "DIRECTORY", "HANGUP"] as const;
-const DESTINATION_TYPES = ["EXTENSION", "RING_GROUP", "QUEUE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"] as const;
+const DESTINATION_TYPES = ["EXTENSION", "RING_GROUP", "QUEUE", "CONFERENCE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"] as const;
 
 export default async function IvrFlowBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   await requireManager();

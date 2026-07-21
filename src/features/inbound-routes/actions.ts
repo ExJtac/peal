@@ -9,7 +9,7 @@ import { requireManager } from "@/lib/guards";
 const schema = z.object({
   id: z.string().optional().or(z.literal("")),
   name: z.string().trim().min(1),
-  destinationType: z.enum(["EXTENSION", "RING_GROUP", "QUEUE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"]),
+  destinationType: z.enum(["EXTENSION", "RING_GROUP", "QUEUE", "CONFERENCE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"]),
   destinationId: z.string().trim().optional().or(z.literal("")),
   businessHoursId: z.string().trim().optional().or(z.literal("")),
   cidNamePrefix: z.string().trim().optional().or(z.literal("")),

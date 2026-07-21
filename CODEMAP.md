@@ -55,6 +55,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `/ring-groups` | `app/(admin)/ring-groups/page.tsx` | Ring groups + members |
 | `/queues` | `app/(admin)/queues/page.tsx` | Call queues (ACD): strategy, MOH, ring/wrap/max-wait, announcements, timeout/failover dest, agent members (+penalty) |
 | `/queues/wallboard` | `app/(admin)/queues/wallboard/page.tsx` | **Live wallboard** — polls `/api/queues/live` (~3s); per-queue tiles: waiting, longest wait, agents avail/on-call/paused, today answered/abandoned/avg-wait |
+| `/conferences` | `app/(admin)/conferences/page.tsx` | Conference rooms CRUD (number, MOH-when-alone, record, max members) |
 | `/api/queues/live` | `app/api/queues/live/route.ts` | QueueStatus feed (daemon-written snapshots + queue names), Manager+ (401 JSON otherwise) |
 | `/provisioning` | `app/(admin)/provisioning/page.tsx` | Devices (MAC/vendor/model) + per-MAC provisioning URL |
 | `/guardrails` | `app/(admin)/guardrails/page.tsx` | Toll-fraud policy (singleton) + block log |
@@ -80,7 +81,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | trunks | `trunks/actions.ts`, `trunks/provider-templates.ts`, `trunks/trunk-form.tsx` | BYO trunk → `upsertTrunkPjsip` (endpoint/aor/auth/identify/registration). Provider picker (Telnyx/VoIP.ms/Bandwidth/Twilio/Generic) auto-fills SIP settings + NAT-friendliness warnings; see `TRUNK-SETUP.md` |
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
-| queues | `queues/actions.ts`, `queues/wallboard.tsx` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue`. **QUEUE wired into every destination picker** (inbound/business-hours/ivr/ring-group-failover/ai-agent handoff). `wallboard.tsx` (client) polls `/api/queues/live` |
+| queues · conferences | `queues/actions.ts`, `queues/wallboard.tsx`, `conferences/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue`. **QUEUE wired into every destination picker** (inbound/business-hours/ivr/ring-group-failover/ai-agent handoff). `wallboard.tsx` (client) polls `/api/queues/live` |
 | provisioning | `provisioning/actions.ts` | Device CRUD; provisioning URL from `provisioning/secrets` |
 | guardrails · e911 · settings | `*/actions.ts` | singletons + E911 locations (reporting is read-only, no actions) |
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
@@ -99,10 +100,11 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `destinations.ts` | resolvers: extension (+ **call-forward to mobile** in `dialExtension`), ring-group, **queue**, IVR, voicemail, time-condition + inbound/outbound/internal entry; `routeInternal` resolves **queue + ring-group by number** (internal dial + blind-transfer target); shared `resolveOutboundLeg` (route+guardrails+trunk+CID) used by outbound **and** forwarding |
 | `ivrInterpreter.ts` | DB IvrFlow/IvrNode state machine (DTMF-driven, no generated dialplan) |
 | `originate.ts` | dial-group primitive (bridge + first-answer-wins ring + failover) |
-| `queue.ts` | **call-queue / ACD engine** (stateful): waiting list on MOH + agent-dial scheduler by strategy (RINGALL/LINEAR/FEWEST_CALLS/LEAST_RECENT/RANDOM), answered-bridge, abandon/no-answer/max-wait→failover, hold announcements. Own `pendingAgentDials`/playback maps (no collision with originate/voicemail); mirrors `QUEUE_*` channel vars for recovery. `dialQueue` (from `resolveDestination` QUEUE) + `onAgentAnswered` (routing "queued") + `onQueue*Ended` (dispatcher) |
+| `queue.ts` | **call-queue / ACD engine** (stateful): waiting list on MOH + agent-dial scheduler by strategy (RINGALL/LINEAR/FEWEST_CALLS/LEAST_RECENT/RANDOM), answered-bridge, abandon/no-answer/max-wait→failover, hold announcements, `writeQueueSnapshot`→`QueueStatus` (wallboard). Own `pendingAgentDials`/playback maps; mirrors `QUEUE_*` channel vars for recovery. `dialQueue` (from `resolveDestination` QUEUE) + `onAgentAnswered` (routing "queued") + `onQueue*Ended` (dispatcher) |
+| `conference.ts` | **meet-me conferencing**: persistent named mixing bridge, MOH-when-alone, optional record, teardown-when-empty; mirrors `CONF_ID`/`CONF_BRIDGE` vars for recovery. `joinConference` (from `resolveDestination` CONFERENCE / dial the number) + `onConferenceChannelGone` (dispatcher) + `recoverConferences` |
 | `callSession.ts` · `callRecord.ts` · `recording.ts` · `status.ts` · `events.ts` | in-memory registry · CDR create/finalize · **call recording + SUMMARIZE_CALL enqueue** · SystemStatus · typed shapes |
 | `voicemail.ts` | **app-owned voicemail capture over ARI** (greeting → record → `VoicemailMessage` row → TRANSCRIBE_VOICEMAIL enqueue → MWI); `RecordingFinished`/caller-hangup once-guard; native `[vmdirect]` fallback. `sendToVoicemail` delegates here |
-| `stateRecovery.ts` | on ARI (re)connect: re-adopt in-flight channels + `recoverAgents` (AI legs) + `recoverQueues` (re-adopt held queue callers via surviving MOH bridge) |
+| `stateRecovery.ts` | on ARI (re)connect: re-adopt in-flight channels + `recoverAgents` (AI legs) + `recoverQueues` + `recoverConferences` (re-adopt held queue callers / conference members via surviving bridge) |
 | `realtime/{odbcPool,psSchema,psWriter,reconcile}.ts` | Prisma truth → Asterisk ps_* tables (`asterisk` schema) + reconcile |
 
 ## Real-time AI receptionist (`src/telephony/realtime-media/`) — the flagship voice agent
@@ -155,7 +157,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/smoke-live.ts` | opt-in live ARI + STT/LLM check |
 | `scripts/ai-smoke.ts` | **opt-in live** AI-receptionist end-to-end (routes a real call → agent → verifies media loop + clean teardown) |
 | `scripts/pstn-smoke.ts` | **opt-in live** outbound-PSTN check (`npm run smoke:pstn -- +1NUMBER [trunk]`): originates a real call out a trunk, watches Ringing→Up, prints pass/fail + inbound checklist |
-| `scripts/queue-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
+| `scripts/queue-smoke.ts` / `scripts/conference-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |

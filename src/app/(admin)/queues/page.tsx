@@ -9,6 +9,7 @@ const DEST_OPTIONS: [string, string][] = [
   ["EXTENSION", "Extension"],
   ["RING_GROUP", "Ring group"],
   ["QUEUE", "Queue"],
+  ["CONFERENCE", "Conference"],
   ["IVR", "IVR"],
   ["VOICEMAIL", "Voicemail"],
   ["TIME_CONDITION", "Time condition"],
