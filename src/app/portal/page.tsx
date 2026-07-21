@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto-vault";
 import { SIP_WS_URL, SIP_DOMAIN } from "@/lib/env";
 import { Softphone } from "@/features/portal/softphone";
-import { setDnd } from "@/features/portal/actions";
+import { setDnd, setCallForward } from "@/features/portal/actions";
+import { parseCallForward } from "@/lib/callForward";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function PortalPage() {
   }
 
   const password = decryptSecret(ext.sipPasswordEnc);
+  const fwd = parseCallForward(ext.callForward);
   const recent = await db.callRecord.findMany({
     where: { OR: [{ fromExtensionId: ext.id }, { toExtensionId: ext.id }] },
     orderBy: { startedAt: "desc" },
@@ -52,6 +54,30 @@ export default async function PortalPage() {
           </p>
         </div>
       )}
+
+      <div className="card">
+        <h2 className="font-medium mb-3">Call forwarding</h2>
+        <form action={setCallForward} className="flex flex-wrap items-end gap-3">
+          <div className="field mb-0">
+            <label className="label">Mode</label>
+            <select className="select" name="mode" defaultValue={fwd?.mode ?? "off"}>
+              <option value="off">Off</option>
+              <option value="always">Always → mobile</option>
+              <option value="no_answer">On no answer → mobile</option>
+            </select>
+          </div>
+          <div className="field mb-0 flex-1 min-w-[12rem]">
+            <label className="label">Forward to number</label>
+            <input className="input" name="number" placeholder="+15125550123" defaultValue={fwd?.number ?? ""} />
+          </div>
+          <button className="btn" type="submit">Save</button>
+        </form>
+        <p className="muted text-sm mt-2">
+          {fwd
+            ? `Forwarding ${fwd.mode === "always" ? "all calls" : "unanswered calls"} to ${fwd.number}.`
+            : "Off — calls ring your phone, then go to voicemail."}
+        </p>
+      </div>
 
       <Softphone
         wsUrl={SIP_WS_URL}

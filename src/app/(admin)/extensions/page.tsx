@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 import { saveExtension, deleteExtension } from "@/features/extensions/actions";
+import { parseCallForward } from "@/lib/callForward";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function ExtensionsPage({ searchParams }: { searchParams: P
   const { edit } = await searchParams;
   const exts = await db.extension.findMany({ orderBy: { number: "asc" }, include: { devices: true } });
   const editing = edit ? exts.find((e) => e.id === edit) ?? null : null;
+  const fwd = parseCallForward(editing?.callForward);
 
   return (
     <div>
@@ -48,6 +50,18 @@ export default async function ExtensionsPage({ searchParams }: { searchParams: P
           <div className="field">
             <label className="label">Ring seconds</label>
             <input className="input" name="ringSeconds" type="number" defaultValue={editing?.ringSeconds ?? 20} min={5} max={120} />
+          </div>
+          <div className="field">
+            <label className="label">Call forwarding</label>
+            <select className="select" name="callForwardMode" defaultValue={fwd?.mode ?? "off"}>
+              <option value="off">Off</option>
+              <option value="always">Always → mobile</option>
+              <option value="no_answer">On no answer → mobile</option>
+            </select>
+          </div>
+          <div className="field">
+            <label className="label">Forward to number</label>
+            <input className="input" name="callForwardNumber" placeholder="e.g. +15125550123" defaultValue={fwd?.number ?? ""} />
           </div>
           <div className="field col-span-2">
             <label className="label">SIP password ({editing ? "blank = keep existing" : "blank = auto-generate"})</label>

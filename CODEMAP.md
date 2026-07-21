@@ -90,7 +90,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `stateRecovery.ts` | Re-adopt in-flight channels on reconnect (via CALLREC_ID channel var) |
 | `dispatcher.ts` | ARI event router (StasisStart / DTMF / ChannelDestroyed) |
 | `routing.ts` | StasisStart pipeline (internal / inbound / outbound / dialed / spine) |
-| `destinations.ts` | resolvers: extension, ring-group, IVR, voicemail, time-condition + inbound/outbound/internal entry |
+| `destinations.ts` | resolvers: extension (+ **call-forward to mobile** in `dialExtension`), ring-group, IVR, voicemail, time-condition + inbound/outbound/internal entry; shared `resolveOutboundLeg` (route+guardrails+trunk+CID) used by outbound **and** forwarding |
 | `ivrInterpreter.ts` | DB IvrFlow/IvrNode state machine (DTMF-driven, no generated dialplan) |
 | `originate.ts` | dial-group primitive (bridge + first-answer-wins ring + failover) |
 | `callSession.ts` · `callRecord.ts` · `recording.ts` · `status.ts` · `events.ts` | in-memory registry · CDR create/finalize · **call recording + SUMMARIZE_CALL enqueue** · SystemStatus · typed shapes |
@@ -133,7 +133,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 |---|---|
 | `db.ts` · `env.ts` · `queue.ts` · `heartbeat.ts` | Prisma+pg singleton · typed env · AiJob queue · heartbeat wrapper |
 | `auth.ts` · `guards.ts` · `password.ts` · `crypto-vault.ts` | JWT session · role guards · bcrypt · AES-256-GCM vault |
-| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers |
+| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize (typed `Extension.callForward`) |
 | `src/components/sidebar.tsx` | admin nav (client, active link) |
 
 ## Data + scripts + tests

@@ -9,6 +9,7 @@ import { createCallRecord, finalizeCallRecord } from "./callRecord";
 import { putSession, activeOutboundCount } from "./callSession";
 import { decideGuardrail } from "@/lib/guardrail";
 import { classifyDial, digitsOnly, applyDialTransform, matchDialPattern, toE164 } from "@/lib/phone";
+import { parseCallForward } from "@/lib/callForward";
 import { resolveBusinessHours, type HoursRule } from "@/lib/businessHours";
 import type { DestinationType, Extension, RingGroup, BusinessHours } from "@prisma/client";
 
@@ -54,8 +55,29 @@ export async function sendToVoicemail(callerChannelId: string, ext: Extension, c
 }
 
 export async function dialExtension(callerChannelId: string, ext: Extension, callRecordId: string): Promise<void> {
+  const cf = parseCallForward(ext.callForward);
+  // Forward-always: straight to the mobile, BEFORE the DND check (explicit forward intent wins).
+  if (cf?.mode === "always") return forwardToMobile(callerChannelId, ext, cf.number, callRecordId);
   if (ext.dnd) return sendToVoicemail(callerChannelId, ext, callRecordId);
   await dialEndpoints(callerChannelId, [{ endpoint: `PJSIP/${ext.number}` }], {
+    ringSeconds: ext.ringSeconds || RING_DEFAULT,
+    // Forward-on-no-answer: ring the desk first, then the mobile, then voicemail.
+    onNoAnswer: async () =>
+      cf?.mode === "no_answer"
+        ? forwardToMobile(callerChannelId, ext, cf.number, callRecordId)
+        : sendToVoicemail(callerChannelId, ext, callRecordId),
+  });
+}
+
+// Forward a call to an external mobile number via an outbound trunk. Reuses the same route pick /
+// guardrails / transform / caller-ID as normal outbound dialing (resolveOutboundLeg). If the
+// forward can't be placed (blocked, or no route/trunk) or the mobile doesn't answer, the caller
+// still lands in the extension's own voicemail.
+async function forwardToMobile(callerChannelId: string, ext: Extension, number: string, callRecordId: string): Promise<void> {
+  const leg = await resolveOutboundLeg(number, ext);
+  if (!leg.ok) return sendToVoicemail(callerChannelId, ext, callRecordId);
+  await dialEndpoints(callerChannelId, [{ endpoint: leg.endpoint }], {
+    callerId: leg.callerId,
     ringSeconds: ext.ringSeconds || RING_DEFAULT,
     onNoAnswer: async () => sendToVoicemail(callerChannelId, ext, callRecordId),
   });
@@ -180,7 +202,6 @@ export async function routeInternal(callerChannelId: string, callerNum: string, 
 }
 
 export async function routeOutbound(callerChannelId: string, callerNum: string, dialed: string): Promise<void> {
-  const digits = digitsOnly(dialed);
   const callClass = classifyDial(dialed);
   const fromExt = callerNum ? await db.extension.findUnique({ where: { number: callerNum } }) : null;
 
@@ -195,7 +216,43 @@ export async function routeOutbound(callerChannelId: string, callerNum: string, 
   await ari.setVar(callerChannelId, "CALLREC_ID", callRecordId).catch(() => {});
   putSession({ channelId: callerChannelId, callRecordId, direction: "OUTBOUND", retries: 0, createdAt: Date.now() });
 
-  // ---- toll-fraud guardrails ----
+  const leg = await resolveOutboundLeg(dialed, fromExt);
+  if (!leg.ok) {
+    if (leg.blocked) {
+      await db.blockEvent
+        .create({ data: { toNumber: dialed, reason: leg.reason, action: leg.action, fromExtensionId: fromExt?.id } })
+        .catch(() => {});
+      await finalizeCallRecord(callRecordId, { disposition: "BLOCKED", guardrailAction: leg.action, guardrailReason: leg.reason });
+    } else {
+      await finalizeCallRecord(callRecordId, { disposition: "FAILED" });
+    }
+    return playThenHangup(callerChannelId, "ss-noservice");
+  }
+
+  await dialEndpoints(callerChannelId, [{ endpoint: leg.endpoint }], {
+    callerId: leg.callerId,
+    ringSeconds: 60,
+    onNoAnswer: async () => {
+      await finalizeCallRecord(callRecordId, { disposition: "NO_ANSWER" });
+      await ari.hangup(callerChannelId).catch(() => {});
+    },
+  });
+}
+
+// Shared outbound-leg resolver: route pick + toll-fraud guardrails + trunk + number transform +
+// caller-ID. Used by routeOutbound (normal dialing) AND forwardToMobile (call forwarding), so the
+// two paths can't drift. `permExt` is the extension whose outbound permission + caller-ID apply
+// (the dialer for outbound; the forwarding extension for a forward).
+type GuardrailAction = ReturnType<typeof decideGuardrail>["action"];
+type OutboundLeg =
+  | { ok: true; endpoint: string; callerId?: string }
+  | { ok: false; blocked: true; reason: string; action: GuardrailAction }
+  | { ok: false; blocked: false; reason: "no_route" | "no_trunk" };
+
+async function resolveOutboundLeg(dialedNumber: string, permExt: Extension | null): Promise<OutboundLeg> {
+  const digits = digitsOnly(dialedNumber);
+  const callClass = classifyDial(dialedNumber);
+
   const policy = await db.guardrailPolicy.findUnique({ where: { id: "singleton" } });
   const decision = decideGuardrail(
     {
@@ -208,50 +265,25 @@ export async function routeOutbound(callerChannelId: string, callerNum: string, 
     {
       callClass,
       dialedDigits: digits,
-      extensionPermission: fromExt?.outboundPermission ?? "local",
+      extensionPermission: permExt?.outboundPermission ?? "local",
       concurrentOutbound: activeOutboundCount(),
       velocityCount: 0,
       velocityLimit: null,
     },
   );
+  if (decision.action !== "ALLOW") return { ok: false, blocked: true, reason: decision.reason, action: decision.action };
 
-  if (decision.action !== "ALLOW") {
-    await db.blockEvent
-      .create({ data: { toNumber: dialed, reason: decision.reason, action: decision.action, fromExtensionId: fromExt?.id } })
-      .catch(() => {});
-    await finalizeCallRecord(callRecordId, {
-      disposition: "BLOCKED",
-      guardrailAction: decision.action,
-      guardrailReason: decision.reason,
-    });
-    return playThenHangup(callerChannelId, "ss-noservice");
-  }
-
-  // ---- pick an outbound route ----
   const routes = await db.outboundRoute.findMany({ where: { enabled: true }, orderBy: { priority: "asc" } });
-  const extRank = PERMISSION_RANK[fromExt?.outboundPermission ?? "local"] ?? 1;
+  const extRank = PERMISSION_RANK[permExt?.outboundPermission ?? "local"] ?? 1;
   const route = routes.find(
     (r) => matchDialPattern(r.matchPattern, digits) && extRank >= (PERMISSION_RANK[r.permissionTag] ?? 1),
   );
-  if (!route) {
-    await finalizeCallRecord(callRecordId, { disposition: "FAILED" });
-    return playThenHangup(callerChannelId, "ss-noservice");
-  }
+  if (!route) return { ok: false, blocked: false, reason: "no_route" };
 
   const trunk = await db.trunk.findUnique({ where: { id: route.trunkId } });
-  if (!trunk?.enabled) {
-    await finalizeCallRecord(callRecordId, { disposition: "FAILED" });
-    return void ari.hangup(callerChannelId).catch(() => {});
-  }
+  if (!trunk?.enabled) return { ok: false, blocked: false, reason: "no_trunk" };
 
   const outNumber = applyDialTransform(digits, route.stripDigits, route.prependDigits);
-  const callerId = route.callerIdNumber ?? fromExt?.callerIdNumber ?? undefined;
-  await dialEndpoints(callerChannelId, [{ endpoint: `PJSIP/${outNumber}@${trunk.name}` }], {
-    callerId,
-    ringSeconds: 60,
-    onNoAnswer: async () => {
-      await finalizeCallRecord(callRecordId, { disposition: "NO_ANSWER" });
-      await ari.hangup(callerChannelId).catch(() => {});
-    },
-  });
+  const callerId = route.callerIdNumber ?? permExt?.callerIdNumber ?? undefined;
+  return { ok: true, endpoint: `PJSIP/${outNumber}@${trunk.name}`, callerId };
 }

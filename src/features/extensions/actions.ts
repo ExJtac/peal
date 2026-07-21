@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 import { encryptSecret } from "@/lib/crypto-vault";
 import { upsertExtensionPjsip, deleteExtensionPjsip } from "@/telephony/realtime/psWriter";
+import { serializeCallForward, callForwardFromForm } from "@/lib/callForward";
 
 const schema = z.object({
   id: z.string().optional().or(z.literal("")),
@@ -19,6 +20,8 @@ const schema = z.object({
   ringSeconds: z.coerce.number().int().min(5).max(120),
   sipPassword: z.string().optional().or(z.literal("")),
   webrtc: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  callForwardMode: z.enum(["off", "always", "no_answer"]).optional().default("off"),
+  callForwardNumber: z.string().trim().optional().or(z.literal("")),
 });
 
 export async function saveExtension(formData: FormData): Promise<void> {
@@ -35,6 +38,7 @@ export async function saveExtension(formData: FormData): Promise<void> {
     outboundPermission: data.outboundPermission,
     ringSeconds: data.ringSeconds,
     webrtc: data.webrtc,
+    callForward: serializeCallForward(callForwardFromForm(data.callForwardMode, data.callForwardNumber || "")),
   };
 
   let ext;
