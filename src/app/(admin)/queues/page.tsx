@@ -50,7 +50,10 @@ export default async function QueuesPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <h1 className="text-xl font-semibold mb-6">Queues (ACD)</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold">Queues (ACD)</h1>
+        <a className="btn-ghost" href="/queues/wallboard">Live wallboard →</a>
+      </div>
 
       <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit queue" : "Add queue"}</h2>

@@ -356,6 +356,7 @@ async function serviceQueue(queueId: string): Promise<void> {
     }
   } finally {
     rt.servicing = false;
+    scheduleSnapshot(queueId); // every service pass reflects the latest waiting/agent state
     if (rt.dirty) {
       rt.dirty = false;
       void serviceQueue(queueId);
@@ -453,6 +454,7 @@ async function onCallerTimeout(queueId: string, caller: WaitingCaller): Promise<
   const type = rt.cfg.timeoutType ?? rt.cfg.failoverType;
   const id = rt.cfg.timeoutId ?? rt.cfg.failoverId;
   await failoverCaller(caller.callerChannelId, caller.callRecordId, type, id);
+  void serviceQueue(queueId); // freed agents can now serve remaining waiting callers
 }
 
 async function failoverCaller(callerChannelId: string, callRecordId: string, type: Queue["failoverType"], id: string | null): Promise<void> {
@@ -563,6 +565,57 @@ function clearCallerTimers(caller: WaitingCaller): void {
   caller.timeoutTimer = undefined;
 }
 
+// --- live wallboard snapshot (daemon writes QueueStatus; the wallboard UI polls it) -------------
+
+const snapshotState = new Map<string, { lastAt: number; timer?: ReturnType<typeof setTimeout> }>();
+
+/** Throttled to ~1/sec per queue, always with a trailing write so the final state lands. */
+function scheduleSnapshot(queueId: string): void {
+  const st = snapshotState.get(queueId) ?? { lastAt: 0 };
+  snapshotState.set(queueId, st);
+  const since = Date.now() - st.lastAt;
+  if (since >= 1000) {
+    st.lastAt = Date.now();
+    void writeQueueSnapshot(queueId);
+  } else if (!st.timer) {
+    st.timer = setTimeout(() => {
+      st.timer = undefined;
+      st.lastAt = Date.now();
+      void writeQueueSnapshot(queueId);
+    }, 1000 - since);
+  }
+}
+
+/** Fully defensive — a wallboard write must never break call handling (or an under-mocked test). */
+async function writeQueueSnapshot(queueId: string): Promise<void> {
+  try {
+    const rt = runtimes.get(queueId);
+    if (!rt) return;
+    const now = Date.now();
+    const waiting = rt.waiting.length;
+    const longestWaitSec = waiting ? Math.round((now - Math.min(...rt.waiting.map((c) => c.joinedAt))) / 1000) : 0;
+    let agentsAvailable = 0;
+    let agentsOnCall = 0;
+    let agentsPaused = 0;
+    for (const a of rt.agents.values()) {
+      if (!a.eligible) agentsPaused++;
+      else if (a.status === "ON_CALL") agentsOnCall++;
+      else if (a.status === "AVAILABLE") agentsAvailable++;
+    }
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const [answeredToday, abandonedToday, agg] = await Promise.all([
+      db.queueCallLog.count({ where: { queueId, enteredAt: { gte: startOfDay }, outcome: "ANSWERED" } }),
+      db.queueCallLog.count({ where: { queueId, enteredAt: { gte: startOfDay }, outcome: "ABANDONED" } }),
+      db.queueCallLog.aggregate({ _avg: { waitSec: true }, where: { queueId, enteredAt: { gte: startOfDay }, outcome: "ANSWERED" } }),
+    ]);
+    const data = { waiting, longestWaitSec, agentsAvailable, agentsOnCall, agentsPaused, answeredToday, abandonedToday, avgWaitSec: Math.round(agg._avg.waitSec ?? 0) };
+    await db.queueStatus.upsert({ where: { queueId }, update: data, create: { queueId, ...data } });
+  } catch {
+    /* best-effort */
+  }
+}
+
 // --- daemon-restart recovery (called from stateRecovery.recoverState) ----------------------------
 
 function isCallerTracked(channelId: string): boolean {
@@ -623,8 +676,10 @@ export async function recoverQueues(channels: { id: string; name: string }[]): P
 
 /** Test-only: clear all in-memory queue state between cases. Never called in production. */
 export function __resetQueuesForTest(): void {
+  for (const st of snapshotState.values()) if (st.timer) clearTimeout(st.timer);
   runtimes.clear();
   pendingAgentDials.clear();
   activeCalls.clear();
   playWaiters.clear();
+  snapshotState.clear();
 }
