@@ -1,0 +1,31 @@
+# dependencies / build output
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# env / secrets (local-only; keys stay here, never committed)
+.env
+.env.*
+!.env.example
+
+# prisma local artifacts
+prisma/*.db
+prisma/*.db-journal
+
+# local media (voicemail / recordings spool)
+/media/
+/recordings/
+
+# lima / asterisk local state
+*.log
+asterisk/build/*.tar.gz
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
