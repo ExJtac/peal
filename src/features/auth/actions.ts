@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 import { createSession, destroySession } from "@/lib/auth";
+import { homeForRole } from "@/lib/roles";
 
 export type AuthState = { error?: string };
 
@@ -23,7 +24,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     return { error: "Wrong email or password." };
   }
   await createSession(user.id);
-  redirect("/");
+  redirect(homeForRole(user.role));
 }
 
 export async function logoutAction(): Promise<void> {

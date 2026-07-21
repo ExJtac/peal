@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveDevice, deleteDevice } from "@/features/provisioning/actions";
 import { provisioningToken } from "@/provisioning/secrets";
 import { appUrl } from "@/lib/env";
@@ -7,7 +7,7 @@ import { appUrl } from "@/lib/env";
 export const dynamic = "force-dynamic";
 
 export default async function ProvisioningPage() {
-  await requireAdmin();
+  await requireManager();
   const [devices, exts] = await Promise.all([
     db.device.findMany({ orderBy: { mac: "asc" }, include: { extension: true } }),
     db.extension.findMany({ orderBy: { number: "asc" } }),

@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveGuardrails } from "@/features/guardrails/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function GuardrailsPage() {
-  await requireAdmin();
+  await requireManager();
   const [policy, events] = await Promise.all([
     db.guardrailPolicy.findUnique({ where: { id: "singleton" } }),
     db.blockEvent.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),

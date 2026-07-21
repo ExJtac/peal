@@ -20,7 +20,8 @@ datasource db {
 
 enum Role {
   ADMIN
-  OPERATOR
+  MANAGER
+  USER
 }
 
 enum TrunkProvider {
@@ -136,7 +137,7 @@ model User {
   email        String     @unique
   passwordHash String
   name         String?
-  role         Role       @default(OPERATOR)
+  role         Role       @default(USER)
   extensionId  String?    @unique
   extension    Extension? @relation(fields: [extensionId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
@@ -161,6 +162,7 @@ model Extension {
   dnd                Boolean           @default(false)
   callForward        Json? // { always?: string, busy?: string, noAnswer?: string }
   outboundPermission String            @default("local") // matched against OutboundRoute.permissionTag
+  webrtc             Boolean           @default(false) // true = WebRTC (browser softphone) endpoint
   enabled            Boolean           @default(true)
   user               User?
   devices            Device[]

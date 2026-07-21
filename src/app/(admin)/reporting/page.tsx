@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportingPage() {
-  await requireAdmin();
+  await requireManager();
   const calls = await db.callRecord.findMany({ orderBy: { startedAt: "desc" }, take: 100 });
 
   return (

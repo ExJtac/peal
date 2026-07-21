@@ -46,6 +46,31 @@ async function main() {
     });
   }
 
+  // A WebRTC (browser softphone) extension + the portal user bound to it, plus a manager login.
+  const webExt = await db.extension.upsert({
+    where: { number: "2001" },
+    update: { webrtc: true },
+    create: {
+      number: "2001",
+      displayName: "Web User",
+      webrtc: true,
+      outboundPermission: "national",
+      callerIdName: "Web User",
+      sipPasswordEnc: encryptSecret("sip-2001-devpass"),
+      mailbox: { create: { mailbox: "2001", email: "user@pbx.local" } },
+    },
+  });
+  await db.user.upsert({
+    where: { email: "manager@pbx.local" },
+    update: { role: "MANAGER" },
+    create: { email: "manager@pbx.local", name: "Manager", role: "MANAGER", passwordHash: await hashPassword("password123") },
+  });
+  await db.user.upsert({
+    where: { email: "user@pbx.local" },
+    update: { role: "USER", extensionId: webExt.id },
+    create: { email: "user@pbx.local", name: "Web User", role: "USER", extensionId: webExt.id, passwordHash: await hashPassword("password123") },
+  });
+
   const telnyx = await db.trunk.upsert({
     where: { name: "telnyx" },
     update: {},
@@ -74,7 +99,10 @@ async function main() {
     },
   });
 
-  console.log("Seed complete. Admin login: admin@pbx.local / password123");
+  console.log("Seed complete. Logins (all password123):");
+  console.log("  admin@pbx.local   (ADMIN)");
+  console.log("  manager@pbx.local (MANAGER)");
+  console.log("  user@pbx.local    (USER, ext 2001 WebRTC → portal)");
 }
 
 main()

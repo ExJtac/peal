@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveDid, deleteDid } from "@/features/dids/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function DidsPage() {
-  await requireAdmin();
+  await requireManager();
   const [dids, trunks, routes] = await Promise.all([
     db.did.findMany({ orderBy: { e164: "asc" }, include: { trunk: true, inboundRoute: true } }),
     db.trunk.findMany({ orderBy: { name: "asc" } }),

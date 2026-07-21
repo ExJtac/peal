@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveTrunk, deleteTrunk } from "@/features/trunks/actions";
 import { TELNYX_TEMPLATE } from "@/features/trunks/telnyx-template";
 
 export const dynamic = "force-dynamic";
 
 export default async function TrunksPage() {
-  await requireAdmin();
+  await requireManager();
   const trunks = await db.trunk.findMany({ orderBy: { name: "asc" } });
 
   return (

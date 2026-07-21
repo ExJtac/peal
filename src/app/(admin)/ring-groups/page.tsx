@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveRingGroup, deleteRingGroup } from "@/features/ring-groups/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function RingGroupsPage() {
-  await requireAdmin();
+  await requireManager();
   const groups = await db.ringGroup.findMany({
     orderBy: { number: "asc" },
     include: { members: { orderBy: { order: "asc" }, include: { extension: true } } },

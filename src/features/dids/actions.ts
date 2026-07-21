@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 
 // Checkbox → boolean: absent (unchecked) becomes false, "on" (checked) becomes true.
 const checkbox = z.preprocess((v) => v === "on" || v === "true", z.boolean());
@@ -20,7 +20,7 @@ const schema = z.object({
 });
 
 export async function saveDid(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const data = schema.parse(Object.fromEntries(formData));
   const id = data.id || null;
 
@@ -44,7 +44,7 @@ export async function saveDid(formData: FormData): Promise<void> {
 }
 
 export async function deleteDid(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const id = String(formData.get("id") ?? "");
   const did = await db.did.findUnique({ where: { id } });
   if (did) await db.did.delete({ where: { id } });

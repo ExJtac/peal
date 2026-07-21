@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
 const fmt = (d: Date | null | undefined) => (d ? d.toLocaleString() : "—");
 
 export default async function CallDetailPage({ params }: { params: Promise<{ callId: string }> }) {
-  await requireAdmin();
+  await requireManager();
   const { callId } = await params;
   const call = await db.callRecord.findUnique({ where: { id: callId }, include: { transcript: true } });
   if (!call) notFound();

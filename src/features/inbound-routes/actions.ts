@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 
 const schema = z.object({
   id: z.string().optional().or(z.literal("")),
@@ -16,7 +16,7 @@ const schema = z.object({
 });
 
 export async function saveInboundRoute(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const data = schema.parse(Object.fromEntries(formData));
   const id = data.id || null;
 
@@ -39,7 +39,7 @@ export async function saveInboundRoute(formData: FormData): Promise<void> {
 }
 
 export async function deleteInboundRoute(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const id = String(formData.get("id") ?? "");
   const route = await db.inboundRoute.findUnique({ where: { id } });
   if (route) await db.inboundRoute.delete({ where: { id } });

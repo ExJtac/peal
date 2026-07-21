@@ -11,6 +11,9 @@ const LINKS: [string, string][] = [
   ["/inbound", "Inbound Routes"],
   ["/outbound", "Outbound Routes"],
   ["/ring-groups", "Ring Groups"],
+  ["/ivr", "IVR / Auto-Attendant"],
+  ["/business-hours", "Business Hours"],
+  ["/voicemail", "Voicemail"],
   ["/provisioning", "Provisioning"],
   ["/guardrails", "Guardrails"],
   ["/e911", "E911"],
@@ -18,11 +21,12 @@ const LINKS: [string, string][] = [
   ["/settings", "Settings"],
 ];
 
-export function Sidebar() {
+export function Sidebar({ isAdmin }: { isAdmin: boolean }) {
   const path = usePathname();
+  const links = isAdmin ? [...LINKS, ["/users", "Users"] as [string, string]] : LINKS;
   return (
     <nav className="space-y-1">
-      {LINKS.map(([href, label]) => {
+      {links.map(([href, label]) => {
         const active = href === "/" ? path === "/" : path.startsWith(href);
         return (
           <Link key={href} href={href} className={`nav-link ${active ? "nav-link-active" : ""}`}>

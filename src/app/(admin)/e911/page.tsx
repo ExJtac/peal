@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { e911IsGoLiveReady } from "@/lib/e911";
 import { saveLocation, deleteLocation } from "@/features/e911/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function E911Page() {
-  await requireAdmin();
+  await requireManager();
   const locations = await db.e911Location.findMany({ orderBy: { name: "asc" } });
 
   return (

@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveOutboundRoute, deleteOutboundRoute } from "@/features/outbound-routes/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function OutboundRoutesPage() {
-  await requireAdmin();
+  await requireManager();
   const [routes, trunks] = await Promise.all([
     db.outboundRoute.findMany({ orderBy: { priority: "asc" } }),
     db.trunk.findMany({ orderBy: { name: "asc" } }),

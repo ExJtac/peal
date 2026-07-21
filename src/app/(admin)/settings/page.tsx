@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveSettings } from "@/features/settings/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  await requireAdmin();
+  await requireManager();
   const settings = await db.companySettings.findUnique({ where: { id: "singleton" } });
 
   return (

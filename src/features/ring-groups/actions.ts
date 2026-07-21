@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 
 // Comma-separated text field → trimmed non-empty list.
 const list = (s?: string) => (s ?? "").split(",").map((x) => x.trim()).filter(Boolean);
@@ -24,7 +24,7 @@ const schema = z.object({
 });
 
 export async function saveRingGroup(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const data = schema.parse(Object.fromEntries(formData));
   const id = data.id || null;
 
@@ -60,7 +60,7 @@ export async function saveRingGroup(formData: FormData): Promise<void> {
 }
 
 export async function deleteRingGroup(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const id = String(formData.get("id") ?? "");
   const group = await db.ringGroup.findUnique({ where: { id } });
   if (group) await db.ringGroup.delete({ where: { id } });

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { encryptSecret } from "@/lib/crypto-vault";
 import { normalizeMac, isValidMac } from "@/lib/ids";
 import { provisioningToken } from "@/provisioning/secrets";
@@ -18,7 +18,7 @@ const schema = z.object({
 });
 
 export async function saveDevice(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const data = schema.parse(Object.fromEntries(formData));
   const mac = normalizeMac(data.mac);
   if (!isValidMac(mac)) throw new Error("Invalid MAC address — need 12 hex digits.");
@@ -46,7 +46,7 @@ export async function saveDevice(formData: FormData): Promise<void> {
 }
 
 export async function deleteDevice(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const id = String(formData.get("id") ?? "");
   await db.device.delete({ where: { id } }).catch(() => {});
   revalidatePath("/provisioning");

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { encryptSecret } from "@/lib/crypto-vault";
 import { upsertTrunkPjsip, deleteTrunkPjsip } from "@/telephony/realtime/psWriter";
 
@@ -34,7 +34,7 @@ const schema = z.object({
 });
 
 export async function saveTrunk(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const data = schema.parse(Object.fromEntries(formData));
   const id = data.id || null;
 
@@ -82,7 +82,7 @@ export async function saveTrunk(formData: FormData): Promise<void> {
 }
 
 export async function deleteTrunk(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const id = String(formData.get("id") ?? "");
   const trunk = await db.trunk.findUnique({ where: { id } });
   if (trunk) {

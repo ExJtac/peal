@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { encryptSecret } from "@/lib/crypto-vault";
 import { upsertExtensionPjsip, deleteExtensionPjsip } from "@/telephony/realtime/psWriter";
 
@@ -21,7 +21,7 @@ const schema = z.object({
 });
 
 export async function saveExtension(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const data = schema.parse(Object.fromEntries(formData));
   const id = data.id || null;
 
@@ -60,7 +60,7 @@ export async function saveExtension(formData: FormData): Promise<void> {
 }
 
 export async function deleteExtension(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireManager();
   const id = String(formData.get("id") ?? "");
   const ext = await db.extension.findUnique({ where: { id } });
   if (ext) {

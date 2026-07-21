@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveExtension, deleteExtension } from "@/features/extensions/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExtensionsPage() {
-  await requireAdmin();
+  await requireManager();
   const exts = await db.extension.findMany({ orderBy: { number: "asc" }, include: { devices: true } });
 
   return (

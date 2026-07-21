@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/guards";
+import { requireManager } from "@/lib/guards";
 import { saveInboundRoute, deleteInboundRoute } from "@/features/inbound-routes/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function InboundRoutesPage() {
-  await requireAdmin();
+  await requireManager();
   const routes = await db.inboundRoute.findMany({ orderBy: { name: "asc" } });
 
   return (
