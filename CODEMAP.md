@@ -14,8 +14,12 @@ same step. Consult this FIRST, then open only the mapped file(s).
 > setup + NAT-correct PJSIP (REGISTER line-support, keepalive tuning, transport-honoring), a live
 > outbound-PSTN smoke, and `TRUNK-SETUP.md`. Going live = pick a REGISTER-capable provider
 > (Telnyx/VoIP.ms — the dev VM is double-NAT'd, so IP-auth providers like Bandwidth need a public host).
-> Not yet built: call-center (queues/ACD/conferencing/parking/BLF), non-Fanvil renderers, live PSTN
-> traffic. Tags: `[later]` = not built yet.
+> ✅ **Call-center suite BUILT + live-verified** — queues/ACD + live wallboard + agent login/pause,
+> conferencing, call parking, softphone Hold + blind Transfer, internal dialing of feature numbers —
+> and **production hardening** — systemd supervision + auto-restart, daily pg backups, health-alert
+> email, login lockout, `prisma reset` guard, E911 on-site notify, fail2ban jail (see `HARDENING.md`).
+> Deferred/not built: live PSTN traffic (needs an ITSP account), BLF presence state, non-Fanvil
+> renderers, attended transfer, SIP TLS/SRTP enablement (config-ready). Tags: `[later]` = not built.
 
 ## Long-running processes (`worker/`)
 | Process | File | What it does |
@@ -34,7 +38,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `asterisk/etc/extensions.conf` | Dialplan: `Stasis(pbx-app)` handoff + **native-first 911** + graceful fallback contexts |
 | `asterisk/sql/001_ps_tables.sql` | schema `asterisk` + PJSIP realtime tables (ps_endpoints/auths/aors/contacts/endpoint_id_ips/registrations/domain_aliases/globals) |
 | `asterisk/sql/002_cdr_cel.sql` | `asterisk.cdr` + `asterisk.cel` |
-| `asterisk/scripts/e911-notify.sh` | Kari's Law on-site notify hook (logs; TODO real paging) |
+| `asterisk/scripts/e911-notify.sh` + `asterisk/security/pbx-asterisk.local` | Kari's Law notify hook (POSTs to /api/e911/notify, fail-soft) + fail2ban SIP jail. Prod runbook: `HARDENING.md` |
 
 ## Routes (`src/app/`)
 > **Admin list pages are full CRUD.** Each list route (extensions, trunks, dids, inbound, outbound,
@@ -72,6 +76,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `/media/recording/[id]` | `app/media/recording/[id]/route.ts` | Stream a call recording via ARI (Admin/Manager) |
 | `/media/voicemail/[id]` | `app/media/voicemail/[id]/route.ts` | Stream a voicemail recording via ARI (mailbox owner or Admin/Manager) |
 | `/api/health` | `app/api/health/route.ts` | Health JSON (reads SystemStatus) |
+| `/api/e911/notify` | `app/api/e911/notify/route.ts` | Kari's Law hook — token-gated POST from `e911-notify.sh`: emails on-site contact + writes an `E911_CALL` audit row |
 
 ## Features (`src/features/<feature>/`) — UI + Server Actions
 | Feature | Files | Notes |
@@ -146,7 +151,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 |---|---|
 | `db.ts` · `env.ts` · `queue.ts` · `heartbeat.ts` | Prisma+pg singleton · typed env · AiJob queue · heartbeat wrapper |
 | `auth.ts` · `guards.ts` · `password.ts` · `crypto-vault.ts` | JWT session · role guards · bcrypt · AES-256-GCM vault |
-| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` · `health.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize · **control-plane health verdict** (pure; drives the health-alert timer) |
+| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` · `health.ts` · `loginThrottle.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize · **control-plane health verdict** (pure; drives the health-alert timer) |
 | `src/components/sidebar.tsx` | admin nav (client, active link) |
 
 ## Data + scripts + tests

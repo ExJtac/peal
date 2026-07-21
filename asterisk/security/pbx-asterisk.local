@@ -1,0 +1,22 @@
+# PBX fail2ban jail — bans IPs that repeatedly fail SIP auth / registration, mitigating
+# registration-hijack + SIP-scan brute-force at the NETWORK layer (the app guardrails in
+# src/lib/guardrail.ts only cover app-originated OUTBOUND toll-fraud).
+#
+# Install (in the prod VM, as root):
+#   apt-get install -y fail2ban
+#   cp /opt/pbx/asterisk/security/pbx-asterisk.local /etc/fail2ban/jail.d/pbx-asterisk.local
+#   systemctl restart fail2ban
+#   fail2ban-client status asterisk        # confirm the jail is active
+#
+# Requires the Asterisk "security" log channel — already enabled in asterisk/etc/logger.conf
+# (security => security → /var/log/asterisk/security). The `asterisk` filter ships with fail2ban.
+
+[asterisk]
+enabled  = true
+filter   = asterisk
+logpath  = /var/log/asterisk/security
+# 5 failures in 10 min → ban the source IP on ALL ports for 1 hour.
+maxretry = 5
+findtime = 600
+bantime  = 3600
+action   = iptables-allports[name=asterisk]
