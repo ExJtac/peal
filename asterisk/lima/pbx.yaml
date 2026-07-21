@@ -1,0 +1,132 @@
+# Lima VM template for the custom AI-PBX engine (Asterisk 22 on Debian 13 "trixie").
+#
+#   limactl start --name=pbx ~/Desktop/claude/pbx/asterisk/lima/pbx.yaml
+#
+# What this gives you:
+#   - A Debian 13 guest (aarch64 on Apple Silicon, x86_64 on Intel).
+#   - The repo mounted read-only at /repo.
+#   - Asterisk 22 compiled from source on first boot via the checked-in build script,
+#     so dev == prod (the same build-asterisk.sh provisions the real prod VM too).
+#
+# The Node control plane runs NATIVELY on the Mac and talks to Asterisk in this VM:
+#   - ARI REST  : http://<vm-ip>:8088/ari
+#   - ARI events: outbound websocket (Asterisk dials OUT to ws://MAC_HOST_IP:8090)
+#   - Postgres  : this VM reaches the Mac's Postgres over ODBC at MAC_HOST_IP:5432
+#
+# ---------------------------------------------------------------------------------------
+# NETWORKING — pick ONE (see the `networks:` block near the bottom):
+#
+#   DEV (default here): Apple Virtualization "vzNAT".
+#       - No sudo, no socket_vmnet helper required.
+#       - The host (Mac) can reach the guest; the guest can reach the host.
+#       - Fine for softphones running ON the Mac + the Node control plane on the Mac.
+#       - MAC_HOST_IP (the host as seen from the guest) is typically 192.168.64.1 on
+#         the vz shared network — confirm with `route -n get default` inside the VM,
+#         or `ip route | grep default` -> the gateway is usually the host.
+#
+#   OFFICE / LAN phones: bridged via socket_vmnet.
+#       - Real LAN IP for the guest so a physical Fanvil + desk phones can REGISTER
+#         with zero NAT pain (kills one-way audio).
+#       - Requires: brew install socket_vmnet + the sudoers helper (see BUILD-PLAN.md
+#         "Dev environment bootstrap"). Then swap the networks block below.
+# ---------------------------------------------------------------------------------------
+
+# Debian 13 (trixie) cloud images, both arches. Lima auto-selects by host arch.
+images:
+  - location: "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-arm64.qcow2"
+    arch: "aarch64"
+  - location: "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
+    arch: "x86_64"
+
+cpus: 4
+memory: "4GiB"
+disk: "20GiB"
+
+# Read-only mount of the repo. build-asterisk.sh reads REPO_DIR=/repo and copies
+# asterisk/etc/* into /etc/asterisk. Nothing in the guest writes back to the Mac.
+mounts:
+  - location: "~/Desktop/claude/pbx"
+    mountPoint: "/repo"
+    writable: false
+
+# ---------------------------------------------------------------------------------------
+# NETWORKS
+# ---------------------------------------------------------------------------------------
+# DEV DEFAULT: Apple vz NAT — host<->guest reachable, no sudo/helper needed.
+# Requires the VM to run under the vz virtualization framework (see `vmType` below).
+networks:
+  - vzNAT: true
+
+# OFFICE / LAN-phone alternative — comment out the vzNAT block above and use this
+# instead (also set `vmType: qemu` OR keep vz; socket_vmnet works with both).
+# The guest gets a real IP on your LAN so desk phones can register to it directly.
+#
+# networks:
+#   - lima: bridged            # uses the shared "bridged" network from lima's default
+#                              # networks.yaml (br0 over your primary NIC).
+#     # interface: en0         # optionally pin the host NIC to bridge over.
+#
+# Prereqs for bridged:
+#   brew install socket_vmnet
+#   limactl sudoers | sudo tee /etc/sudoers.d/lima   # installs the socket_vmnet helper
+# See: BUILD-PLAN.md -> "Dev environment bootstrap".
+
+# Apple Virtualization framework (needed for vzNAT; also fine on Apple Silicon generally).
+# For the bridged/office path you may switch this to "qemu" if you prefer.
+vmType: "vz"
+
+# ---------------------------------------------------------------------------------------
+# PORT FORWARDS
+# ---------------------------------------------------------------------------------------
+# With vzNAT the guest is directly reachable from the Mac, so explicit forwards are
+# usually unnecessary — the Mac can hit http://<vm-ip>:8088 straight away. These entries
+# are documented for reference / for setups where you'd rather reach services on
+# 127.0.0.1 of the Mac. SIP/RTP (UDP 5060 + 10000-20000) are intentionally NOT forwarded
+# here: for real phones use the bridged (office) network so media isn't NAT-mangled.
+portForwards:
+  - guestPort: 8088          # ARI / mini-HTTP server (http.conf)
+    hostIP: "127.0.0.1"
+  # - guestPort: 5060        # SIP — prefer bridged networking for real phones instead.
+  #   proto: udp
+
+# ---------------------------------------------------------------------------------------
+# PROVISIONING — build Asterisk from source on first boot (runs as root).
+# ---------------------------------------------------------------------------------------
+provision:
+  # Compile + install Asterisk 22 from source and drop in our configs.
+  - mode: system
+    script: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      # ASTERISK_VERSION is overridable; the script pins a sane default (22.10.0).
+      REPO_DIR=/repo bash /repo/asterisk/build/build-asterisk.sh
+
+# Quick health probe Lima runs after provisioning (informational; won't block start
+# if Asterisk isn't started yet — you still must set MAC_HOST_IP + ARI password).
+probes:
+  - description: "asterisk binary present"
+    script: |
+      #!/usr/bin/env bash
+      set -eu
+      if ! command -v asterisk >/dev/null 2>&1; then
+        echo "asterisk binary not found — check the provision log (limactl shell pbx sudo journalctl)" >&2
+        exit 1
+      fi
+    hint: "Asterisk failed to build. Inspect: limactl shell pbx -- sudo cat /var/log/cloud-init-output.log"
+
+message: |
+  ------------------------------------------------------------------------
+  PBX VM is up. Asterisk 22 was compiled from source.
+
+  FINISH SETUP (one-time, per-host values):
+    limactl shell pbx
+    sudo sed -i "s/MAC_HOST_IP/<mac-ip-from-vm>/g" /etc/odbc.ini \
+        /etc/asterisk/cdr_pgsql.conf /etc/asterisk/cel_pgsql.conf
+    sudo sed -i "s/CHANGEME_ARI_PASSWORD/<your-ari-password>/" /etc/asterisk/ari.conf
+    sudo systemctl start asterisk
+
+  VERIFY:
+    limactl shell pbx -- sudo asterisk -rx "odbc show"
+    limactl shell pbx -- sudo asterisk -rx "pjsip show endpoints"
+    limactl shell pbx -- sudo asterisk -rx "ari show apps"
+  ------------------------------------------------------------------------

@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0c10;
+  --surface: #12151c;
+  --surface-2: #1b1f28;
+  --border: #262c38;
+  --foreground: #e8ebf1;
+  --muted: #93a0b4;
+  --accent: #2dd4bf;      /* teal — telecom */
+  --accent-fg: #04211d;
+  --danger: #ff6b6b;
+  --success: #3ecf8e;
+  --warning: #f5a623;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .btn:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-pointer;
+    background: var(--surface-2);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer;
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--border);
+  }
+  .btn-danger:hover { border-color: var(--danger); }
+
+  .card {
+    @apply rounded-xl p-5;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .input, .select, .textarea {
+    @apply w-full rounded-lg px-3 py-2 text-sm outline-none;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+  }
+  .input:focus, .select:focus, .textarea:focus { border-color: var(--accent); }
+  .label { @apply mb-1 block text-sm font-medium; color: var(--muted); }
+  .field { @apply mb-4; }
+  .muted { color: var(--muted); }
+  .error { color: var(--danger); }
+
+  .badge {
+    @apply inline-block rounded-full px-2 py-0.5 text-xs font-medium;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .badge-online  { background: rgba(62,207,142,0.12); border-color: rgba(62,207,142,0.4); color: var(--success); }
+  .badge-offline { background: rgba(255,107,107,0.10); border-color: rgba(255,107,107,0.35); color: var(--danger); }
+  .badge-warn    { background: rgba(245,166,35,0.12); border-color: rgba(245,166,35,0.4); color: var(--warning); }
+  .badge-accent  { background: rgba(45,212,191,0.14); border-color: rgba(45,212,191,0.4); color: var(--accent); }
+
+  /* Data tables */
+  .table { @apply w-full text-sm border-collapse; }
+  .table th {
+    @apply text-left font-medium px-3 py-2;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .table td {
+    @apply px-3 py-2;
+    border-bottom: 1px solid var(--border);
+  }
+  .table tr:hover td { background: var(--surface-2); }
+
+  /* Sidebar nav */
+  .nav-link {
+    @apply block rounded-lg px-3 py-2 text-sm transition-colors;
+    color: var(--muted);
+  }
+  .nav-link:hover { background: var(--surface-2); color: var(--foreground); }
+  .nav-link-active { background: var(--surface-2); color: var(--foreground); border: 1px solid var(--border); }
+
+  .stat { @apply rounded-xl p-4; background: var(--surface); border: 1px solid var(--border); }
+  .stat-value { @apply text-2xl font-semibold; }
+  .stat-label { @apply text-xs; color: var(--muted); }
+}

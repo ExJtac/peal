@@ -1,0 +1,567 @@
+// pbx — data model (OUR app tables, schema "public").
+//
+// Asterisk-owned realtime tables (ps_endpoints/ps_auths/ps_aors/ps_endpoint_id_ips/
+// ps_registrations/ps_contacts/ps_globals) + cdr/cel live in schema "asterisk" and are
+// applied by scripts/apply-asterisk-sql.ts. `prisma migrate` NEVER touches them.
+// See CODEMAP.md + BUILD-PLAN.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Prisma 7: connection lives in prisma.config.ts (CLI) and the pg adapter (runtime).
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum TrunkProvider {
+  TELNYX
+  TWILIO
+  BANDWIDTH
+  VOIPMS
+  GENERIC
+}
+
+enum TrunkAuthMode {
+  REGISTER
+  IP_AUTH
+}
+
+enum SipTransport {
+  UDP
+  TCP
+  TLS
+}
+
+/// Where an inbound call / IVR option / ring-group failure goes. destinationId is a
+/// polymorphic pointer into the matching table (kept as a scalar, not a Prisma relation).
+enum DestinationType {
+  EXTENSION
+  RING_GROUP
+  IVR
+  VOICEMAIL
+  TIME_CONDITION
+  HANGUP
+  EXTERNAL
+}
+
+enum RingStrategy {
+  RINGALL
+  HUNT
+  MEMORY_HUNT
+  RANDOM
+}
+
+enum IvrNodeType {
+  MENU
+  PLAY
+  COLLECT
+  TRANSFER
+  VOICEMAIL
+  DIRECTORY
+  HANGUP
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum CallDisposition {
+  ANSWERED
+  NO_ANSWER
+  BUSY
+  FAILED
+  VOICEMAIL
+  BLOCKED
+}
+
+enum DeviceVendor {
+  FANVIL
+  YEALINK
+  GRANDSTREAM
+  POLY
+  GENERIC
+}
+
+enum GuardrailAction {
+  ALLOW
+  BLOCK
+  PIN_REQUIRED
+}
+
+/// Classification of a dialed destination, used by outbound routing + guardrails.
+enum CallClass {
+  INTERNAL
+  LOCAL
+  NATIONAL
+  INTERNATIONAL
+  TOLLFREE
+  EMERGENCY
+}
+
+enum AiJobKind {
+  TRANSCRIBE_VOICEMAIL
+  SUMMARIZE_CALL
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum VmFolder {
+  INBOX
+  OLD
+}
+
+// ---------------------------------------------------------------------------
+// People / auth
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String?
+  role         Role       @default(OPERATOR)
+  extensionId  String?    @unique
+  extension    Extension? @relation(fields: [extensionId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Extensions + devices + voicemail
+// ---------------------------------------------------------------------------
+
+model Extension {
+  id                 String            @id @default(cuid())
+  number             String            @unique
+  displayName        String
+  sipPasswordEnc     String // AES-256-GCM (crypto-vault)
+  email              String?
+  callerIdName       String?
+  callerIdNumber     String?
+  codecs             String[]          @default(["ulaw", "alaw"])
+  maxContacts        Int               @default(1)
+  ringSeconds        Int               @default(20)
+  dnd                Boolean           @default(false)
+  callForward        Json? // { always?: string, busy?: string, noAnswer?: string }
+  outboundPermission String            @default("local") // matched against OutboundRoute.permissionTag
+  enabled            Boolean           @default(true)
+  user               User?
+  devices            Device[]
+  mailbox            VoicemailBox?
+  ringGroupMembers   RingGroupMember[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model Device {
+  id                  String       @id @default(cuid())
+  mac                 String       @unique // normalized lowercase, no separators
+  vendor              DeviceVendor @default(FANVIL)
+  model               String
+  extensionId         String?
+  extension           Extension?   @relation(fields: [extensionId], references: [id], onDelete: SetNull)
+  lineKeys            Json? // [{ index, type: "blf"|"speeddial"|"line", value, label }]
+  provisioningTokenEnc String
+  firmwareTarget      String?
+  timezone            String?
+  e911LocationId      String?
+  lastProvisionedAt   DateTime?
+  lastProvisionedIp   String?
+  lastUserAgent       String?
+  enabled             Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+model VoicemailBox {
+  id               String             @id @default(cuid())
+  mailbox          String             @unique // usually the extension number
+  extensionId      String             @unique
+  extension        Extension          @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+  pinEnc           String?
+  email            String?
+  attachAudio      Boolean            @default(true)
+  greetingPath     String?
+  transcribeEnabled Boolean           @default(true)
+  messages         VoicemailMessage[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model VoicemailMessage {
+  id           String       @id @default(cuid())
+  boxId        String
+  box          VoicemailBox @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  asteriskMsgId String?
+  folder       VmFolder     @default(INBOX)
+  fromNumber   String?
+  fromName     String?
+  durationSec  Int          @default(0)
+  audioPath    String
+  aiSummary    String?
+  urgency      String? // low | normal | high (AI-tagged)
+  read         Boolean      @default(false)
+  transcript   Transcript?
+  receivedAt   DateTime     @default(now())
+
+  @@index([boxId, folder, receivedAt])
+}
+
+model Transcript {
+  id                 String            @id @default(cuid())
+  text               String
+  segments           Json?
+  engine             String            @default("mock")
+  callRecordId       String?           @unique
+  callRecord         CallRecord?       @relation(fields: [callRecordId], references: [id], onDelete: Cascade)
+  voicemailMessageId String?           @unique
+  voicemailMessage   VoicemailMessage? @relation(fields: [voicemailMessageId], references: [id], onDelete: Cascade)
+  createdAt          DateTime          @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Trunks + numbers + routing
+// ---------------------------------------------------------------------------
+
+model Trunk {
+  id              String        @id @default(cuid())
+  name            String        @unique
+  provider        TrunkProvider @default(TELNYX)
+  authMode        TrunkAuthMode @default(IP_AUTH)
+  sipServer       String
+  port            Int           @default(5060)
+  transport       SipTransport  @default(UDP)
+  username        String?
+  passwordEnc     String?
+  fromDomain      String?
+  fromUser        String?
+  authIps         String[]      @default([]) // IP-auth identify ACL (the ITSP's IPs)
+  outboundProxy   String?
+  codecs          String[]      @default(["ulaw", "alaw"])
+  registerEnabled Boolean       @default(false)
+  maxChannels     Int           @default(10)
+  spendCeilingUsd Decimal?      @db.Decimal(10, 2)
+  enabled         Boolean       @default(true)
+  dids            Did[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Did {
+  id               String        @id @default(cuid())
+  e164             String        @unique
+  description      String?
+  trunkId          String?
+  trunk            Trunk?        @relation(fields: [trunkId], references: [id], onDelete: SetNull)
+  inboundRouteId   String?
+  inboundRoute     InboundRoute? @relation(fields: [inboundRouteId], references: [id], onDelete: SetNull)
+  emergencyCapable Boolean       @default(false)
+  e911LocationId   String?
+  e911Location     E911Location? @relation(fields: [e911LocationId], references: [id], onDelete: SetNull)
+  enabled          Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model InboundRoute {
+  id              String          @id @default(cuid())
+  name            String
+  destinationType DestinationType
+  destinationId   String? // polymorphic pointer (extension/ring-group/ivr/voicemail-box id)
+  businessHoursId String?
+  businessHours   BusinessHours?  @relation(fields: [businessHoursId], references: [id], onDelete: SetNull)
+  cidNamePrefix   String?
+  dids            Did[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model OutboundRoute {
+  id              String   @id @default(cuid())
+  name            String
+  priority        Int      @default(100)
+  matchPattern    String // NANP-ish pattern, e.g. "1NXXNXXXXXX", "NXXNXXXXXX", "011." (see lib/phone.ts)
+  stripDigits     Int      @default(0)
+  prependDigits   String   @default("")
+  trunkId         String
+  failoverTrunkId String?
+  callerIdNumber  String?
+  permissionTag   String   @default("local")
+  requiresPin     Boolean  @default(false)
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([priority])
+}
+
+model RingGroup {
+  id            String            @id @default(cuid())
+  number        String            @unique
+  name          String
+  strategy      RingStrategy      @default(RINGALL)
+  ringSeconds   Int               @default(20)
+  failoverType  DestinationType?
+  failoverId    String?
+  cidNamePrefix String?
+  members       RingGroupMember[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model RingGroupMember {
+  id          String    @id @default(cuid())
+  ringGroupId String
+  ringGroup   RingGroup @relation(fields: [ringGroupId], references: [id], onDelete: Cascade)
+  extensionId String
+  extension   Extension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+  order       Int       @default(0)
+
+  @@unique([ringGroupId, extensionId])
+}
+
+model IvrFlow {
+  id             String      @id @default(cuid())
+  name           String
+  number         String?     @unique
+  entryNodeId    String?
+  timeoutSeconds Int         @default(5)
+  maxRetries     Int         @default(3)
+  invalidType    DestinationType?
+  invalidId      String?
+  nodes          IvrNode[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model IvrNode {
+  id              String           @id @default(cuid())
+  flowId          String
+  flow            IvrFlow          @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  type            IvrNodeType
+  name            String
+  promptPath      String?
+  promptText      String?
+  timeoutNodeId   String?
+  invalidNodeId   String?
+  destinationType DestinationType?
+  destinationId   String?
+  config          Json?
+  options         IvrOption[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([flowId])
+}
+
+model IvrOption {
+  id              String           @id @default(cuid())
+  nodeId          String
+  node            IvrNode          @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  digit           String // "0".."9", "*", "#"
+  nextNodeId      String?
+  destinationType DestinationType?
+  destinationId   String?
+
+  @@unique([nodeId, digit])
+}
+
+model BusinessHours {
+  id            String         @id @default(cuid())
+  name          String
+  timezone      String         @default("America/Chicago")
+  rules         Json // [{ days:[1..7], start:"09:00", end:"17:00" }]
+  holidays      Json? // ["2026-12-25", ...]
+  inType        DestinationType
+  inId          String?
+  elseType      DestinationType
+  elseId        String?
+  inboundRoutes InboundRoute[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Call records + reporting
+// ---------------------------------------------------------------------------
+
+model CallRecord {
+  id              String           @id @default(cuid())
+  uniqueId        String?          @unique // Asterisk channel uniqueid
+  linkedId        String? // Asterisk linkedid (correlates legs)
+  direction       CallDirection
+  fromNumber      String?
+  toNumber        String?
+  fromExtensionId String?
+  toExtensionId   String?
+  didId           String?
+  trunkId         String?
+  callClass       CallClass?
+  startedAt       DateTime         @default(now())
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  durationSec     Int              @default(0)
+  billSec         Int              @default(0)
+  disposition     CallDisposition?
+  hangupCause     String?
+  recordingPath   String?
+  aiSummary       String?
+  aiActionItems   Json?
+  aiSentiment     String?
+  guardrailAction GuardrailAction?
+  guardrailReason String?
+  transcript      Transcript?
+
+  @@index([direction, startedAt])
+  @@index([linkedId])
+}
+
+// ---------------------------------------------------------------------------
+// Compliance + guardrails
+// ---------------------------------------------------------------------------
+
+model E911Location {
+  id             String   @id @default(cuid())
+  name           String
+  street         String
+  suite          String?
+  city           String
+  state          String
+  postal         String
+  callbackNumber String
+  notifyEmails   String[] @default([])
+  notifyExtensionId String?
+  validated      Boolean  @default(false)
+  validatedAt    DateTime?
+  validationRef  String?
+  dids           Did[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+/// Singleton (id = "singleton"). Toll-fraud policy applied on every outbound call.
+model GuardrailPolicy {
+  id                    String   @id @default("singleton")
+  internationalEnabled  Boolean  @default(false)
+  internationalPinEnc   String?
+  maxConcurrentOutbound Int      @default(4)
+  perDestinationVelocity Json?   // { "prefix": { count, windowSec } }
+  allowedCountryCodes   String[] @default([])
+  blockedPrefixes       String[] @default([])
+  perTrunkSpendCeilingUsd Decimal? @db.Decimal(10, 2)
+  updatedAt             DateTime @updatedAt
+}
+
+model SpendCounter {
+  id          String   @id @default(cuid())
+  trunkId     String?
+  scope       String // e.g. "trunk:<id>:day"
+  windowStart DateTime
+  amountUsd   Decimal  @default(0) @db.Decimal(10, 2)
+  callCount   Int      @default(0)
+
+  @@unique([scope, windowStart])
+}
+
+model VelocityCounter {
+  id                String   @id @default(cuid())
+  destinationPrefix String
+  windowStart       DateTime
+  count             Int      @default(0)
+
+  @@unique([destinationPrefix, windowStart])
+}
+
+model BlockEvent {
+  id              String          @id @default(cuid())
+  direction       CallDirection   @default(OUTBOUND)
+  fromExtensionId String?
+  toNumber        String
+  reason          String
+  action          GuardrailAction
+  createdAt       DateTime        @default(now())
+
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Settings + system
+// ---------------------------------------------------------------------------
+
+/// Singleton (id = "singleton").
+model CompanySettings {
+  id              String   @id @default("singleton")
+  companyName     String   @default("My Company")
+  timezone        String   @default("America/Chicago")
+  defaultCallerId String?
+  sipDomain       String   @default("pbx.local")
+  externalIp      String?
+  updatedAt       DateTime @updatedAt
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value Json
+}
+
+/// Singleton (id = "singleton"), written by the ARI daemon, read by the UI.
+model SystemStatus {
+  id               String   @id @default("singleton")
+  ariConnected     Boolean  @default(false)
+  asteriskReachable Boolean  @default(false)
+  activeChannels   Int      @default(0)
+  lastEventAt      DateTime?
+  lastReconnectAt  DateTime?
+  psReconcileHash  String?
+  updatedAt        DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model AiJob {
+  id         String    @id @default(cuid())
+  kind       AiJobKind
+  status     JobStatus @default(QUEUED)
+  payload    Json
+  progress   Int       @default(0)
+  attempts   Int       @default(0)
+  lockedBy   String?
+  lockedAt   DateTime?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  lastError  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([status, createdAt])
+}
