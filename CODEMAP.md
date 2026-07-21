@@ -98,6 +98,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `queue.ts` | **call-queue / ACD engine** (stateful): waiting list on MOH + agent-dial scheduler by strategy (RINGALL/LINEAR/FEWEST_CALLS/LEAST_RECENT/RANDOM), answered-bridge, abandon/no-answer/max-wait→failover, hold announcements. Own `pendingAgentDials`/playback maps (no collision with originate/voicemail); mirrors `QUEUE_*` channel vars for recovery. `dialQueue` (from `resolveDestination` QUEUE) + `onAgentAnswered` (routing "queued") + `onQueue*Ended` (dispatcher) |
 | `callSession.ts` · `callRecord.ts` · `recording.ts` · `status.ts` · `events.ts` | in-memory registry · CDR create/finalize · **call recording + SUMMARIZE_CALL enqueue** · SystemStatus · typed shapes |
 | `voicemail.ts` | **app-owned voicemail capture over ARI** (greeting → record → `VoicemailMessage` row → TRANSCRIBE_VOICEMAIL enqueue → MWI); `RecordingFinished`/caller-hangup once-guard; native `[vmdirect]` fallback. `sendToVoicemail` delegates here |
+| `stateRecovery.ts` | on ARI (re)connect: re-adopt in-flight channels + `recoverAgents` (AI legs) + `recoverQueues` (re-adopt held queue callers via surviving MOH bridge) |
 | `realtime/{odbcPool,psSchema,psWriter,reconcile}.ts` | Prisma truth → Asterisk ps_* tables (`asterisk` schema) + reconcile |
 
 ## Real-time AI receptionist (`src/telephony/realtime-media/`) — the flagship voice agent
@@ -153,4 +154,4 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
-| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** (134 tests, offline) |
+| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** (137 tests, offline) |

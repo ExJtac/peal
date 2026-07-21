@@ -193,6 +193,8 @@ export async function onAgentAnswered(agentChannelId: string): Promise<void> {
   clearCallerTimers(caller);
   await ari.stopMoh(caller.holdBridgeId).catch(() => {});
   await ari.addToBridge(caller.holdBridgeId, agentChannelId).catch(() => {});
+  // No longer waiting → recoverQueues must not re-adopt this (now connected) caller after a restart.
+  await ari.setVar(caller.callerChannelId, "QUEUE_ACTIVE", "0").catch(() => {});
 
   const answeredAt = Date.now();
   const waitSec = Math.round((answeredAt - caller.joinedAt) / 1000);
@@ -441,6 +443,8 @@ async function onCallerTimeout(queueId: string, caller: WaitingCaller): Promise<
   await ari.stopMoh(caller.holdBridgeId).catch(() => {});
   await ari.removeFromBridge(caller.holdBridgeId, caller.callerChannelId).catch(() => {});
   await ari.destroyBridge(caller.holdBridgeId).catch(() => {});
+  await ari.setVar(caller.callerChannelId, "QUEUE_ACTIVE", "0").catch(() => {}); // no longer queued
+
   const type = rt.cfg.timeoutType ?? rt.cfg.failoverType;
   const id = rt.cfg.timeoutId ?? rt.cfg.failoverId;
   await failoverCaller(caller.callerChannelId, caller.callRecordId, type, id);
@@ -552,6 +556,64 @@ function clearCallerTimers(caller: WaitingCaller): void {
   if (caller.timeoutTimer) clearTimeout(caller.timeoutTimer);
   caller.announceTimer = undefined;
   caller.timeoutTimer = undefined;
+}
+
+// --- daemon-restart recovery (called from stateRecovery.recoverState) ----------------------------
+
+function isCallerTracked(channelId: string): boolean {
+  for (const rt of runtimes.values()) if (rt.waiting.some((c) => c.callerChannelId === channelId)) return true;
+  return activeCalls.has(channelId);
+}
+
+/**
+ * Re-adopt callers who were WAITING on hold when the daemon restarted. Their MOH keeps playing
+ * (Asterisk-side) through the outage, and QUEUE_* channel vars carry the durable truth, so we
+ * rebuild the runtime + waiting list and resume serving them. A pre-restart ringing agent leg that
+ * later answers has no in-memory pending entry → onAgentAnswered drops it as an orphan and the
+ * re-serviced caller is simply rung again, so they never lose their place. (Connected queue calls
+ * carry QUEUE_ACTIVE=0 and are left alone — Asterisk keeps that bridge up.)
+ */
+export async function recoverQueues(channels: { id: string; name: string }[]): Promise<void> {
+  for (const ch of channels) {
+    if ((await ari.getVar(ch.id, "QUEUE_ACTIVE")) !== "1") continue;
+    if (isCallerTracked(ch.id)) continue; // a WS blip (maps intact), not a process restart
+
+    const queueId = await ari.getVar(ch.id, "QUEUE_ID");
+    const bridgeId = await ari.getVar(ch.id, "QUEUE_BRIDGE");
+    if (!queueId || !bridgeId) continue;
+
+    const q = await db.queue
+      .findUnique({ where: { id: queueId }, include: { members: { include: { extension: true } } } })
+      .catch(() => null);
+    if (!q) {
+      await ari.hangup(ch.id).catch(() => {}); // queue deleted during the outage → drop cleanly
+      continue;
+    }
+
+    const joinedAtRaw = await ari.getVar(ch.id, "QUEUE_JOINED_AT");
+    const joinedAt = joinedAtRaw && Number.isFinite(Number(joinedAtRaw)) ? Number(joinedAtRaw) : Date.now();
+    const callRecordId = (await ari.getVar(ch.id, "CALLREC_ID")) ?? "";
+    // Reuse the still-open QueueCallLog rather than double-counting the call.
+    const openLog = await db.queueCallLog.findFirst({ where: { callRecordId, endedAt: null }, orderBy: { enteredAt: "desc" } }).catch(() => null);
+
+    const rt = getOrCreateRuntime(q);
+    const caller: WaitingCaller = {
+      callerChannelId: ch.id,
+      callRecordId,
+      callLogId: openLog?.id ?? "",
+      holdBridgeId: bridgeId,
+      joinedAt,
+      joinPosition: rt.waiting.length + 1,
+      ringingAgents: new Set(),
+      triedAgents: new Set(),
+    };
+    rt.waiting.push(caller);
+    await ari.startMoh(bridgeId, q.mohClass || undefined).catch(() => {}); // re-assert hold audio
+    armAnnounce(rt, caller);
+    armTimeout(rt, caller);
+    void serviceQueue(queueId);
+    console.log(`[ari] re-adopted queued caller ${ch.id} in "${q.name}" after restart`);
+  }
 }
 
 /** Test-only: clear all in-memory queue state between cases. Never called in production. */

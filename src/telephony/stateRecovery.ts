@@ -5,6 +5,7 @@
 import { ari } from "./ariClient";
 import { getSession, putSession } from "./callSession";
 import { agentByCaller, agentByEm } from "./realtime-media/agentRegistry";
+import { recoverQueues } from "./queue";
 import type { CallDirection, DestinationType } from "@prisma/client";
 
 export async function recoverState(): Promise<void> {
@@ -31,6 +32,7 @@ export async function recoverState(): Promise<void> {
   }
   if (readopted) console.log(`[ari] re-adopted ${readopted} in-flight channel(s) after reconnect`);
   await recoverAgents(channels).catch((e) => console.error("[ari] agent recovery error:", e));
+  await recoverQueues(channels).catch((e) => console.error("[ari] queue recovery error:", e));
 }
 
 /**
