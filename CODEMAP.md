@@ -3,9 +3,12 @@
 Source of truth for navigation. When a feature is added/moved/removed, update this in the
 same step. Consult this FIRST, then open only the mapped file(s).
 
-> ✅ **Phase 0 + most of Phase 1 built.** `npm run build` + `npm test` green (48 tests).
-> Not yet built: voicemail/IVR/users admin screens, non-Fanvil vendor renderers, real-time AI
-> voice agent. Tags: `[later]` = not built yet.
+> ✅ **Phase 1 + user portal + in-browser calling built & verified live.** `npm run build` +
+> `npm test` green (48 tests). Roles (Admin/Manager/User `src/lib/roles.ts`), Users admin,
+> WebRTC softphone portal, business hours, voicemail admin, IVR builder all live; Asterisk
+> realtime ODBC + `transport-ws` WebRTC verified running in the VM.
+> Not yet built: call-center (queues/recording/conferencing/parking/BLF), non-Fanvil renderers,
+> real-time AI voice agent. Tags: `[later]` = not built yet.
 
 ## Long-running processes (`worker/`)
 | Process | File | What it does |
@@ -41,9 +44,13 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `/e911` | `app/(admin)/e911/page.tsx` | Dispatchable locations + go-live readiness |
 | `/reporting` | `app/(admin)/reporting/page.tsx` (+ `[callId]`) | CDR list + call detail (transcript/AI summary) |
 | `/settings` | `app/(admin)/settings/page.tsx` | Company settings (singleton) |
+| `/users` | `app/(admin)/users/page.tsx` | User administration (roles, link extension) — ADMIN only |
+| `/business-hours` | `app/(admin)/business-hours/page.tsx` | Business hours / time conditions |
+| `/voicemail` | `app/(admin)/voicemail/page.tsx` | Voicemail mailboxes + recent messages (admin) |
+| `/ivr` | `app/(admin)/ivr/page.tsx` (+ `[id]`) | IVR / auto-attendant builder (flows, nodes, digit options) |
+| `/portal` | `app/portal/page.tsx` (+ `voicemail/`) | **User portal**: in-browser WebRTC softphone, call history, voicemail, DND |
 | `/provision/[mac]` | `app/provision/[mac]/route.ts` | Serve per-MAC phone config (tokened) |
 | `/api/health` | `app/api/health/route.ts` | Health JSON (reads SystemStatus) |
-| voicemail · ivr · users | — | admin screens `[later]` (engine reads the DB rows regardless) |
 
 ## Features (`src/features/<feature>/`) — UI + Server Actions
 | Feature | Files | Notes |
@@ -55,6 +62,9 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
 | provisioning | `provisioning/actions.ts` | Device CRUD; provisioning URL from `provisioning/secrets` |
 | guardrails · e911 · settings | `*/actions.ts` | singletons + E911 locations (reporting is read-only, no actions) |
+| users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
+| business-hours · voicemail · ivr | `*/actions.ts` | time conditions · VM transcribe toggle · IVR flow/node/option CRUD |
+| portal | `portal/actions.ts`, `portal/softphone.tsx` | user portal: SIP.js WebRTC softphone (client) + DND toggle |
 
 ## Call-control engine (`src/telephony/`) — worker-safe
 | File | Responsibility |
