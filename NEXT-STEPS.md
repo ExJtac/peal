@@ -14,6 +14,11 @@ running in the VM:
   voicemail w/ AI summaries, DND. Works with no desk phone.
 - **Engine:** Asterisk 22.10 in the Lima VM reads extensions live from Postgres via ODBC realtime;
   `transport-ws` up for WebRTC; the Mac ARI daemon is connected.
+- **Call recording → AI summaries:** a Settings toggle records each connected call; on hangup the
+  AI worker pulls the recording from Asterisk (ARI), transcribes it, and Claude writes a summary +
+  action items + sentiment — shown in Reporting (with an audio player) + the portal. **Mock AI by
+  default (free)**; for real transcription set `DEEPGRAM_API_KEY` + `STT_PROVIDER=deepgram` +
+  `ANTHROPIC_API_KEY` in `.env` (small per-call cost). Recording needs a real 2-party call.
 
 Logins (all `password123`): `admin@pbx.local` (ADMIN) · `manager@pbx.local` (MANAGER) ·
 `user@pbx.local` (USER, ext 2001 WebRTC → portal).
@@ -46,18 +51,22 @@ Then open http://localhost:3001. Health: `curl localhost:3001/api/health` → `a
   `standard_conforming_strings=off` (PG escape crash), `transport-ws` needs a `bind`.
   `.env` has `SIP_SERVER_HOST=192.168.64.2`. Re-sync extensions to Asterisk: `npm run db:reconcile`.
 
-## Tonight — home test with the Fanvil (PoE) phone
-The Fanvil needs a PoE switch/injector + to be on the same LAN the VM can reach. For a real
-desk phone (a separate LAN device), switch the VM to **bridged** networking so it gets a home-LAN
-IP the phone can register to: edit `asterisk/lima/pbx.yaml` to the bridged block (`brew install
-socket_vmnet` + `limactl sudoers` — this one needs sudo), restart the VM, set `SIP_SERVER_HOST`
-to the VM's LAN IP, add the phone by MAC in `/provisioning`, point its auto-provision URL at the
-shown `/provision/<mac>.cfg?token=…`.
+## What to build next (recommended order)
+1. **Wire the Telnyx trunk → real PSTN** (bring-your-own SIP): real inbound/outbound to the
+   outside world. The trunk/outbound-route/DID model is built — needs the Telnyx account plugged
+   in + tested. This is what makes it a full 3CX replacement (right now calling is internal + browser).
+2. **Real-time AI receptionist** (the flagship): STT→Claude→TTS over the live call — answers,
+   understands intent ("reschedule my appointment"), routes or handles it. The WebRTC/externalMedia
+   media path already works, so this is now feasible. Biggest differentiator vs 3CX.
+3. **Call-center: queues/ACD** — hold music, wait position, agent login, live wallboard.
+4. **Then:** conferencing, call parking, BLF/presence; SIP/toll-fraud hardening (fail2ban,
+   TLS/SRTP); extension/ring-group edit pages; per-model Fanvil verification; native mobile softphone.
 
-## Deferred (chosen not-today)
-Call-center (queues/ACD, conferencing, parking, BLF/presence),
-real-time AI voice agent (Phase 3), SIP/toll-fraud hardening polish (fail2ban, TLS/SRTP),
-extension/ring-group edit pages, per-model Fanvil verification.
+## Home test with the physical Fanvil (PoE)
+A real desk phone (separate LAN device) needs the VM on the same LAN — switch to **bridged**
+networking: edit `asterisk/lima/pbx.yaml` to the bridged block (`brew install socket_vmnet` +
+`limactl sudoers` — needs sudo), restart the VM, set `SIP_SERVER_HOST` to the VM's LAN IP, add the
+phone by MAC in `/provisioning`, point its auto-provision URL at the shown `/provision/<mac>.cfg?token=…`.
 
 ## Standing reminders
 - **Run exactly one** `npm run ari` and one `npm run worker` (tsx orphans children — `pkill -f` first).
