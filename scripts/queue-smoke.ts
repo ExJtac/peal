@@ -16,6 +16,10 @@ const PASS = process.env.ARI_PASSWORD ?? "";
 const HTTP = process.env.ARI_HTTP_URL ?? "http://127.0.0.1:8088";
 const APP = "queue-smoke";
 const DID = "5559200";
+const QUEUE_NUM = "700";
+// --internal dials the queue's NUMBER via [from-internal] (routeInternal) — the same path a blind
+// transfer to a queue takes; default dials the DID inbound route (routeInbound).
+const INTERNAL = process.argv.includes("--internal");
 const auth = "Basic " + Buffer.from(`${USER}:${PASS}`).toString("base64");
 
 async function ari<T>(method: string, path: string): Promise<T> {
@@ -74,13 +78,12 @@ async function main() {
   });
   await new Promise((r) => ws.once("open", r));
 
-  // Originate a caller: the ;2 leg enters Stasis(pbx-app, inbound, DID) → daemon routes to the queue.
-  const ch = await ari<{ id: string }>(
-    "POST",
-    `/channels${qs({ endpoint: `Local/${DID}@from-trunk`, app: APP, appArgs: "caller", timeout: "30" })}`,
-  );
+  // Originate a caller. Default: ;2 leg → Stasis(pbx-app, inbound, DID) → routeInbound → queue.
+  // --internal: ;2 leg → Stasis(pbx-app, internal, 700) → routeInternal resolves the queue number.
+  const endpoint = INTERNAL ? `Local/${QUEUE_NUM}@from-internal` : `Local/${DID}@from-trunk`;
+  const ch = await ari<{ id: string }>("POST", `/channels${qs({ endpoint, app: APP, appArgs: "caller", timeout: "30" })}`);
   farLeg = ch.id;
-  console.log(`[queue-smoke] originated caller far leg ${farLeg}`);
+  console.log(`[queue-smoke] originated caller far leg ${farLeg} via ${INTERNAL ? "internal-dial 700" : "inbound DID"}`);
   await sleep(3500); // let the daemon answer + hold + create the log + ring the agent
 
   const bridges = await ari<{ id: string; bridge_type?: string; channels: string[] }[]>("GET", "/bridges");

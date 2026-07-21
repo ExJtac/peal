@@ -192,21 +192,32 @@ export async function routeInbound(callerChannelId: string, callerNum: string, d
   await resolveDestination(type, id, callerChannelId, callRecordId);
 }
 
+async function beginInternal(callerChannelId: string, callerNum: string, dialed: string, toExtensionId?: string): Promise<string> {
+  const callRecordId = await createCallRecord({ direction: "INTERNAL", fromNumber: callerNum, toNumber: dialed, uniqueId: callerChannelId, toExtensionId });
+  await ari.setVar(callerChannelId, "CALLREC_ID", callRecordId).catch(() => {});
+  putSession({ channelId: callerChannelId, callRecordId, direction: "INTERNAL", retries: 0, createdAt: Date.now() });
+  return callRecordId;
+}
+
 export async function routeInternal(callerChannelId: string, callerNum: string, dialed: string): Promise<void> {
   const ext = await db.extension.findUnique({ where: { number: dialed } });
   if (ext?.enabled) {
-    const callRecordId = await createCallRecord({
-      direction: "INTERNAL",
-      fromNumber: callerNum,
-      toNumber: dialed,
-      uniqueId: callerChannelId,
-      toExtensionId: ext.id,
-    });
-    await ari.setVar(callerChannelId, "CALLREC_ID", callRecordId).catch(() => {});
-    putSession({ channelId: callerChannelId, callRecordId, direction: "INTERNAL", retries: 0, createdAt: Date.now() });
+    const callRecordId = await beginInternal(callerChannelId, callerNum, dialed, ext.id);
     return dialExtension(callerChannelId, ext, callRecordId);
   }
-  // Not an extension → treat as an external/outbound call.
+  // Feature numbers: a queue or ring group is reachable by dialing its number — this is also what
+  // makes a blind transfer (SIP REFER) to a queue/ring-group work (the referred leg re-enters here).
+  const queue = await db.queue.findUnique({ where: { number: dialed }, select: { id: true } });
+  if (queue) {
+    const callRecordId = await beginInternal(callerChannelId, callerNum, dialed);
+    return resolveDestination("QUEUE", queue.id, callerChannelId, callRecordId);
+  }
+  const rg = await db.ringGroup.findUnique({ where: { number: dialed }, select: { id: true } });
+  if (rg) {
+    const callRecordId = await beginInternal(callerChannelId, callerNum, dialed);
+    return resolveDestination("RING_GROUP", rg.id, callerChannelId, callRecordId);
+  }
+  // Not internal → treat as an external/outbound call.
   return routeOutbound(callerChannelId, callerNum, dialed);
 }
 

@@ -86,17 +86,17 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
 | business-hours · voicemail · ivr | `*/actions.ts` | time conditions · VM transcribe toggle · IVR flow/node/option CRUD |
 | ai-agents | `ai-agents/actions.ts`, `ai-agents/agent-form.tsx` | AI receptionist CRUD (create/update/delete/toggle) + shared form; `AI_AGENT` wired into all destination pickers |
-| portal | `portal/actions.ts`, `portal/softphone.tsx` | user portal: SIP.js WebRTC softphone (client) + DND toggle + **queue-agent login/pause** (`setAgentLoggedIn`/`setAgentPaused` → `QueueMember`, read by the ACD engine) |
+| portal | `portal/actions.ts`, `portal/softphone.tsx` | user portal: SIP.js WebRTC softphone (client, + **Hold/Resume** & **blind Transfer** via SIP REFER → routeInternal) + DND toggle + **queue-agent login/pause** (`setAgentLoggedIn`/`setAgentPaused` → `QueueMember`, read by the ACD engine) |
 
 ## Call-control engine (`src/telephony/`) — worker-safe
 | File | Responsibility |
 |---|---|
-| `ariClient.ts` | Thin fetch-based ARI REST wrapper (answer/bridge/originate/play/record/continue/vars) |
+| `ariClient.ts` | Thin fetch-based ARI REST wrapper (answer/bridge/originate/play/record/continue/vars/**moh start+stop**/**hold·unhold·redirect·snoop·deviceState**) |
 | `connection.ts` | ARI events WS lifecycle + backoff reconnect + heartbeat (inbound WS; outbound-WS upgrade noted) |
 | `stateRecovery.ts` | Re-adopt in-flight channels on reconnect (via CALLREC_ID channel var) |
 | `dispatcher.ts` | ARI event router (StasisStart / DTMF / ChannelDestroyed) |
 | `routing.ts` | StasisStart pipeline (internal / inbound / outbound / dialed / spine) |
-| `destinations.ts` | resolvers: extension (+ **call-forward to mobile** in `dialExtension`), ring-group, IVR, voicemail, time-condition + inbound/outbound/internal entry; shared `resolveOutboundLeg` (route+guardrails+trunk+CID) used by outbound **and** forwarding |
+| `destinations.ts` | resolvers: extension (+ **call-forward to mobile** in `dialExtension`), ring-group, **queue**, IVR, voicemail, time-condition + inbound/outbound/internal entry; `routeInternal` resolves **queue + ring-group by number** (internal dial + blind-transfer target); shared `resolveOutboundLeg` (route+guardrails+trunk+CID) used by outbound **and** forwarding |
 | `ivrInterpreter.ts` | DB IvrFlow/IvrNode state machine (DTMF-driven, no generated dialplan) |
 | `originate.ts` | dial-group primitive (bridge + first-answer-wins ring + failover) |
 | `queue.ts` | **call-queue / ACD engine** (stateful): waiting list on MOH + agent-dial scheduler by strategy (RINGALL/LINEAR/FEWEST_CALLS/LEAST_RECENT/RANDOM), answered-bridge, abandon/no-answer/max-wait→failover, hold announcements. Own `pendingAgentDials`/playback maps (no collision with originate/voicemail); mirrors `QUEUE_*` channel vars for recovery. `dialQueue` (from `resolveDestination` QUEUE) + `onAgentAnswered` (routing "queued") + `onQueue*Ended` (dispatcher) |

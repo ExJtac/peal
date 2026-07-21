@@ -31,10 +31,11 @@ export function Softphone({ wsUrl, sipDomain, authUser, password, displayName }:
   const [dial, setDial] = useState("");
   const [peer, setPeer] = useState("");
   const [muted, setMuted] = useState(false);
+  const [held, setHeld] = useState(false);
   const [secs, setSecs] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
-  const suRef = useRef<{ connect(): Promise<void>; register(): Promise<void>; unregister(): Promise<void>; disconnect(): Promise<void>; call(t: string): Promise<void>; answer(): Promise<void>; decline(): Promise<void>; hangup(): Promise<void>; mute(): void; unmute(): void; sendDTMF(d: string): void } | null>(null);
+  const suRef = useRef<{ connect(): Promise<void>; register(): Promise<void>; unregister(): Promise<void>; disconnect(): Promise<void>; call(t: string): Promise<void>; answer(): Promise<void>; decline(): Promise<void>; hangup(): Promise<void>; mute(): void; unmute(): void; hold(): Promise<void>; unhold(): Promise<void>; sendDTMF(d: string): void } | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -84,6 +85,7 @@ export function Softphone({ wsUrl, sipDomain, authUser, password, displayName }:
               setCall("idle");
               setPeer("");
               setMuted(false);
+              setHeld(false);
               stopTimer();
             },
           },
@@ -154,6 +156,37 @@ export function Softphone({ wsUrl, sipDomain, authUser, password, displayName }:
     if (muted) su.unmute();
     else su.mute();
     setMuted(!muted);
+  };
+  const toggleHold = async () => {
+    const su = suRef.current;
+    if (!su) return;
+    try {
+      if (held) await su.unhold();
+      else await su.hold();
+      setHeld(!held);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
+  // Blind transfer via SIP REFER. SimpleUser doesn't expose refer(), so we reach its (private)
+  // session, which is a SIP.js Session with a public .refer(). The referred call re-enters Asterisk
+  // as a normal internal call, so transferring to an extension / ring group / QUEUE just works.
+  const transfer = async () => {
+    const su = suRef.current;
+    if (!su || call !== "active") return;
+    const target = window.prompt("Blind transfer to (extension, queue, or ring-group number):")?.trim();
+    if (!target) return;
+    try {
+      const { UserAgent } = await import("sip.js");
+      const uri = UserAgent.makeURI(`sip:${target}@${sipDomain}`);
+      if (!uri) throw new Error("invalid transfer target");
+      const session = (su as unknown as { session?: { refer?: (to: unknown) => Promise<unknown> } }).session;
+      if (!session?.refer) throw new Error("transfer not available");
+      await session.refer(uri);
+      setPeer(`transferring to ${target}…`);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
   };
   const press = (d: string) => {
     if (call === "active") {
@@ -237,9 +270,17 @@ export function Softphone({ wsUrl, sipDomain, authUser, password, displayName }:
             ) : (
               <>
                 {call === "active" && (
-                  <button type="button" className="btn-ghost" onClick={toggleMute}>
-                    {muted ? "Unmute" : "Mute"}
-                  </button>
+                  <>
+                    <button type="button" className="btn-ghost" onClick={toggleMute}>
+                      {muted ? "Unmute" : "Mute"}
+                    </button>
+                    <button type="button" className="btn-ghost" onClick={toggleHold}>
+                      {held ? "Resume" : "Hold"}
+                    </button>
+                    <button type="button" className="btn-ghost" onClick={transfer}>
+                      Transfer
+                    </button>
+                  </>
                 )}
                 <button type="button" className="btn-danger" onClick={hangup}>Hang up</button>
               </>

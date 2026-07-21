@@ -101,6 +101,18 @@ export const ari = {
   /** Publish message-waiting-indicator counts to a mailbox (ARI mailboxes resource → the phone's lamp). */
   setMwi: (mailbox: string, m: { newMessages: number; oldMessages: number }) =>
     req<void>("PUT", `/mailboxes/${encodeURIComponent(mailbox)}${qs({ oldMessages: m.oldMessages, newMessages: m.newMessages })}`),
+  /** Put a channel on hold / take it off (server-driven hold; the softphone uses SIP.js re-INVITE). */
+  hold: (id: string) => req<void>("POST", `/channels/${id}/hold`),
+  unhold: (id: string) => req<void>("DELETE", `/channels/${id}/hold`),
+  /** Redirect a channel to a new endpoint (server-driven blind transfer primitive). */
+  redirect: (id: string, endpoint: string) => req<void>("POST", `/channels/${id}/redirect${qs({ endpoint })}`),
+  /** Snoop on a channel (supervisor listen/whisper/barge). `spy`/`whisper` = none|in|out|both. */
+  snoopChannel: (id: string, opts: { app: string; spy?: string; whisper?: string; appArgs?: string }) =>
+    req<AriChannel>("POST", `/channels/${id}/snoop${qs({ app: opts.app, spy: opts.spy, whisper: opts.whisper, appArgs: opts.appArgs })}`),
+  /** Read / publish a custom device state (extension/agent presence for BLF keys). */
+  getDeviceState: (device: string) => req<{ name: string; state: string }>("GET", `/deviceStates/${encodeURIComponent(device)}`),
+  setDeviceState: (device: string, state: string) =>
+    req<void>("PUT", `/deviceStates/${encodeURIComponent(device)}${qs({ deviceState: state })}`),
   /**
    * Create an externalMedia channel: Asterisk streams the bridge's audio to `external_host`
    * (our Node UDP RTP server) and injects RTP we send back (symmetric). Added to a mixing
