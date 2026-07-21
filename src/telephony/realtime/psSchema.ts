@@ -6,22 +6,45 @@ import type { Extension, Trunk } from "@prisma/client";
 type Row = Record<string, string>;
 
 export function endpointRowForExtension(ext: Extension): Row {
-  return {
+  const common: Row = {
     id: ext.number,
-    transport: "transport-udp",
     aors: ext.number,
     auth: ext.number,
     context: "from-internal",
     disallow: "all",
-    allow: ext.codecs?.length ? ext.codecs.join(",") : "ulaw,alaw",
     direct_media: "no",
     force_rport: "yes",
     rewrite_contact: "yes",
     rtp_symmetric: "yes",
-    ice_support: "no",
     callerid: `${ext.callerIdName ?? ext.displayName} <${ext.callerIdNumber ?? ext.number}>`,
     mailboxes: `${ext.number}@default`,
     message_context: "from-internal",
+  };
+
+  if (ext.webrtc) {
+    // Browser softphone: WS signaling + DTLS-SRTP media + ICE (webrtc=yes shorthand, plus the
+    // explicit media columns for deterministic realtime behavior). Opus first, then ulaw.
+    return {
+      ...common,
+      transport: "transport-ws",
+      allow: "opus,ulaw,alaw",
+      webrtc: "yes",
+      dtls_auto_generate_cert: "yes",
+      media_encryption: "dtls",
+      media_use_received_transport: "yes",
+      rtcp_mux: "yes",
+      use_avpf: "yes",
+      ice_support: "yes",
+      dtls_verify: "fingerprint",
+      dtls_setup: "actpass",
+    };
+  }
+
+  return {
+    ...common,
+    transport: "transport-udp",
+    allow: ext.codecs?.length ? ext.codecs.join(",") : "ulaw,alaw",
+    ice_support: "no",
   };
 }
 export function authRowForExtension(ext: Extension, password: string): Row {

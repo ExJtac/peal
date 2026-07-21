@@ -11,6 +11,8 @@ export const ASTERISK_DB_SCHEMA = process.env.ASTERISK_DB_SCHEMA ?? "asterisk";
 // --- SIP / provisioning ---
 export const SIP_DOMAIN = process.env.SIP_DOMAIN ?? "pbx.local";
 export const SIP_SERVER_HOST = process.env.SIP_SERVER_HOST ?? "";
+/** WebSocket URL browser softphones connect to (Asterisk /ws). Falls back to SIP_SERVER_HOST:8088. */
+export const SIP_WS_URL = process.env.SIP_WS_URL ?? (process.env.SIP_SERVER_HOST ? `ws://${process.env.SIP_SERVER_HOST}:8088/ws` : "");
 export const PROVISION_SECRET = process.env.PROVISION_SECRET ?? "dev-only-provision-secret-change-me";
 
 // --- Async AI ---
