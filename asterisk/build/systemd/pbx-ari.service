@@ -1,0 +1,27 @@
+[Unit]
+# Call-control daemon (ARI). Drives every call. If this dies, call control is dead until it
+# restarts — so Restart=always + fast RestartSec, and control-group kill so a restart never
+# leaves the orphaned tsx child processes that race for events (the "run exactly one" footgun).
+Description=PBX call-control daemon (worker/ari)
+After=network-online.target postgresql.service asterisk.service
+Wants=network-online.target
+# Asterisk is the engine this talks to; start after it, but don't hard-require (ARI reconnects).
+After=asterisk.service
+
+[Service]
+Type=simple
+User=@PBX_USER@
+Group=@PBX_USER@
+WorkingDirectory=@PBX_DIR@
+EnvironmentFile=@PBX_ENV@
+# Run the tsx entrypoint directly under node so we don't depend on PATH resolution.
+ExecStart=@NODE_BIN@ @PBX_DIR@/node_modules/.bin/tsx worker/ari/index.ts
+Restart=always
+RestartSec=2
+# Kill the whole cgroup on stop/restart — reaps tsx's child node process (fixes orphan races).
+KillMode=control-group
+TimeoutStopSec=15
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

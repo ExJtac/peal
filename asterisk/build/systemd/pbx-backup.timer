@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily PBX Postgres backup
+
+[Timer]
+# 02:30 daily, with a randomized delay so it never lines up exactly with other cron work.
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

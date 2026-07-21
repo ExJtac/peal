@@ -1,0 +1,13 @@
+[Unit]
+# One-shot control-plane health probe (driven by pbx-health.timer). Emails an alert when the ARI
+# daemon has dropped or its heartbeat is stale, and a recovery notice when it comes back.
+Description=PBX control-plane health check
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=@PBX_USER@
+Group=@PBX_USER@
+WorkingDirectory=@PBX_DIR@
+EnvironmentFile=@PBX_ENV@
+ExecStart=@NODE_BIN@ @PBX_DIR@/node_modules/.bin/tsx scripts/health-check.ts

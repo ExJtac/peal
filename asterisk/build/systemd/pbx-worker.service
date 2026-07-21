@@ -1,0 +1,22 @@
+[Unit]
+# Async-AI job worker (transcription / call summaries / voicemail email). DB-backed claim loop —
+# safe to restart; control-group kill reaps the tsx child so exactly one worker claims jobs.
+Description=PBX async-AI job worker (worker/jobs)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@PBX_USER@
+Group=@PBX_USER@
+WorkingDirectory=@PBX_DIR@
+EnvironmentFile=@PBX_ENV@
+ExecStart=@NODE_BIN@ @PBX_DIR@/node_modules/.bin/tsx worker/jobs/index.ts
+Restart=always
+RestartSec=2
+KillMode=control-group
+TimeoutStopSec=15
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

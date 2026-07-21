@@ -1,0 +1,23 @@
+[Unit]
+# Next.js admin console + user portal. Serves the prebuilt app (install-control-plane.sh runs
+# `next build` at install time; this unit only runs `next start`).
+Description=PBX web console + portal (Next.js)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@PBX_USER@
+Group=@PBX_USER@
+WorkingDirectory=@PBX_DIR@
+EnvironmentFile=@PBX_ENV@
+Environment=NODE_ENV=production
+ExecStart=@NODE_BIN@ @PBX_DIR@/node_modules/.bin/next start -p 3001
+Restart=always
+RestartSec=2
+KillMode=control-group
+TimeoutStopSec=15
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

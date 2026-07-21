@@ -29,6 +29,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 |---|---|
 | `asterisk/lima/pbx.yaml` | Lima Debian 13 VM (vzNAT dev; bridged office block commented); provision hook runs the build script |
 | `asterisk/build/build-asterisk.sh` | Pinned Asterisk 22 (`ASTERISK_VERSION=22.10.0`) source build + menuselect + user/dirs + systemd + copies configs |
+| `asterisk/build/install-control-plane.sh` + `asterisk/build/systemd/*` | **PROD supervision** (dev stays manual on the Mac): systemd units for the 3 Node daemons + Next app (`pbx-ari`/`worker`/`pnp`/`web`, `Restart=always`, `KillMode=control-group` reaps tsx orphans) + `pbx-backup.timer` (daily `pg_dump`) + `pbx-health.timer` (health-alert email). Installer renders `@PLACEHOLDERS@` + enables |
 | `asterisk/etc/*.conf` | asterisk/modules/http/ari/res_odbc/odbc(inst)/extconfig/sorcery/pjsip/extensions/cdr/cel/logger/rtp/musiconhold |
 | `asterisk/etc/extensions.conf` | Dialplan: `Stasis(pbx-app)` handoff + **native-first 911** + graceful fallback contexts |
 | `asterisk/sql/001_ps_tables.sql` | schema `asterisk` + PJSIP realtime tables (ps_endpoints/auths/aors/contacts/endpoint_id_ips/registrations/domain_aliases/globals) |
@@ -136,7 +137,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 |---|---|
 | `db.ts` · `env.ts` · `queue.ts` · `heartbeat.ts` | Prisma+pg singleton · typed env · AiJob queue · heartbeat wrapper |
 | `auth.ts` · `guards.ts` · `password.ts` · `crypto-vault.ts` | JWT session · role guards · bcrypt · AES-256-GCM vault |
-| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize (typed `Extension.callForward`) |
+| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` · `health.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize · **control-plane health verdict** (pure; drives the health-alert timer) |
 | `src/components/sidebar.tsx` | admin nav (client, active link) |
 
 ## Data + scripts + tests
@@ -148,4 +149,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/smoke-live.ts` | opt-in live ARI + STT/LLM check |
 | `scripts/ai-smoke.ts` | **opt-in live** AI-receptionist end-to-end (routes a real call → agent → verifies media loop + clean teardown) |
 | `scripts/pstn-smoke.ts` | **opt-in live** outbound-PSTN check (`npm run smoke:pstn -- +1NUMBER [trunk]`): originates a real call out a trunk, watches Ringing→Up, prints pass/fail + inbound checklist |
-| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession (103 tests, offline) |
+| `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
+| `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
+| `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
+| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · **health** (127 tests, offline) |

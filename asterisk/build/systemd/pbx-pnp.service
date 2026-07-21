@@ -1,0 +1,21 @@
+[Unit]
+# SIP-PnP multicast responder (zero-touch phone provisioning). Optional — only needed for
+# auto-provisioning phones on the LAN; harmless to run always.
+Description=PBX SIP-PnP provisioning responder (worker/pnp)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@PBX_USER@
+Group=@PBX_USER@
+WorkingDirectory=@PBX_DIR@
+EnvironmentFile=@PBX_ENV@
+ExecStart=@NODE_BIN@ @PBX_DIR@/node_modules/.bin/tsx worker/pnp/index.ts
+Restart=always
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
