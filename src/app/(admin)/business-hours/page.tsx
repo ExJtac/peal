@@ -24,27 +24,36 @@ function summarize(rules: unknown): string {
   return `${days || "no days"} · ${first.start ?? "?"}–${first.end ?? "?"}`;
 }
 
-export default async function BusinessHoursPage() {
+export default async function BusinessHoursPage({ searchParams }: { searchParams: Promise<{ edit?: string }> }) {
   await requireManager();
+  const { edit } = await searchParams;
   const rows = await db.businessHours.findMany({ orderBy: { name: "asc" } });
+  const editing = edit ? rows.find((r) => r.id === edit) ?? null : null;
+  // Unflatten the stored single rule + holidays back into form defaults.
+  const editRule = editing
+    ? (editing.rules as unknown as { days: number[]; start: string; end: string }[])[0]
+    : null;
+  const editHolidays = editing && Array.isArray(editing.holidays) ? (editing.holidays as string[]).join(", ") : "";
 
   return (
     <div>
       <h1 className="text-xl font-semibold mb-6">Business hours</h1>
 
       <div className="card mb-8">
-        <h2 className="font-medium mb-3">Add business hours</h2>
+        <h2 className="font-medium mb-3">{editing ? "Edit business hours" : "Add business hours"}</h2>
         <p className="muted text-sm mb-4">
           {"In-hours goes to the 'in' destination, otherwise the 'else' destination (e.g. an after-hours IVR or voicemail)."}
         </p>
-        <form action={saveBusinessHours} className="grid grid-cols-2 gap-4">
+        {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
+        <form key={editing?.id ?? "new"} action={saveBusinessHours} className="grid grid-cols-2 gap-4">
+          {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="field">
             <label className="label">Name</label>
-            <input className="input" name="name" placeholder="Office hours" required />
+            <input className="input" name="name" placeholder="Office hours" defaultValue={editing?.name ?? ""} required />
           </div>
           <div className="field">
             <label className="label">Timezone</label>
-            <input className="input" name="timezone" defaultValue="America/Chicago" required />
+            <input className="input" name="timezone" defaultValue={editing?.timezone ?? "America/Chicago"} required />
           </div>
 
           <div className="field col-span-2">
@@ -52,7 +61,11 @@ export default async function BusinessHoursPage() {
             <div className="flex flex-wrap gap-4">
               {WEEKDAYS.map((d) => (
                 <label key={d.value} className="inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" name={`day${d.value}`} defaultChecked={Number(d.value) <= 5} /> {d.label}
+                  <input
+                    type="checkbox"
+                    name={`day${d.value}`}
+                    defaultChecked={editing ? (editRule?.days.includes(Number(d.value)) ?? false) : Number(d.value) <= 5}
+                  /> {d.label}
                 </label>
               ))}
             </div>
@@ -60,21 +73,21 @@ export default async function BusinessHoursPage() {
 
           <div className="field">
             <label className="label">Open time</label>
-            <input className="input" name="openTime" type="time" defaultValue="09:00" />
+            <input className="input" name="openTime" type="time" defaultValue={editRule?.start ?? "09:00"} />
           </div>
           <div className="field">
             <label className="label">Close time</label>
-            <input className="input" name="closeTime" type="time" defaultValue="17:00" />
+            <input className="input" name="closeTime" type="time" defaultValue={editRule?.end ?? "17:00"} />
           </div>
 
           <div className="field col-span-2">
             <label className="label">Holidays</label>
-            <input className="input" name="holidays" placeholder="comma-separated YYYY-MM-DD, e.g. 2026-12-25, 2027-01-01" />
+            <input className="input" name="holidays" placeholder="comma-separated YYYY-MM-DD, e.g. 2026-12-25, 2027-01-01" defaultValue={editHolidays} />
           </div>
 
           <div className="field">
             <label className="label">In-hours destination type</label>
-            <select className="select" name="inType" defaultValue="EXTENSION">
+            <select className="select" name="inType" defaultValue={editing?.inType ?? "EXTENSION"}>
               <option value="EXTENSION">Extension</option>
               <option value="RING_GROUP">Ring group</option>
               <option value="IVR">IVR</option>
@@ -87,12 +100,12 @@ export default async function BusinessHoursPage() {
           </div>
           <div className="field">
             <label className="label">In-hours destination ID</label>
-            <input className="input" name="inId" placeholder="destination id" />
+            <input className="input" name="inId" placeholder="destination id" defaultValue={editing?.inId ?? ""} />
           </div>
 
           <div className="field">
             <label className="label">After-hours destination type</label>
-            <select className="select" name="elseType" defaultValue="VOICEMAIL">
+            <select className="select" name="elseType" defaultValue={editing?.elseType ?? "VOICEMAIL"}>
               <option value="EXTENSION">Extension</option>
               <option value="RING_GROUP">Ring group</option>
               <option value="IVR">IVR</option>
@@ -105,11 +118,12 @@ export default async function BusinessHoursPage() {
           </div>
           <div className="field">
             <label className="label">After-hours destination ID</label>
-            <input className="input" name="elseId" placeholder="destination id" />
+            <input className="input" name="elseId" placeholder="destination id" defaultValue={editing?.elseId ?? ""} />
           </div>
 
-          <div className="col-span-2">
-            <button className="btn" type="submit">Create business hours</button>
+          <div className="col-span-2 flex items-center gap-3">
+            <button className="btn" type="submit">{editing ? "Save changes" : "Create business hours"}</button>
+            {editing && <a className="btn-ghost" href="/business-hours">Cancel</a>}
           </div>
         </form>
       </div>
@@ -127,13 +141,14 @@ export default async function BusinessHoursPage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id}>
+              <tr key={r.id} className={editing?.id === r.id ? "row-editing" : undefined}>
                 <td>{r.name}</td>
                 <td className="font-mono">{r.timezone}</td>
                 <td>{summarize(r.rules)}</td>
                 <td className="muted text-xs">{r.inType} → {r.elseType}</td>
-                <td className="text-right">
-                  <form action={deleteBusinessHours}>
+                <td className="text-right whitespace-nowrap">
+                  <a className="btn-ghost mr-2" href={`/business-hours?edit=${r.id}`}>Edit</a>
+                  <form action={deleteBusinessHours} className="inline">
                     <input type="hidden" name="id" value={r.id} />
                     <button className="btn-danger" type="submit">Delete</button>
                   </form>

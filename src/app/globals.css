@@ -93,6 +93,8 @@ body {
     border-bottom: 1px solid var(--border);
   }
   .table tr:hover td { background: var(--surface-2); }
+  /* Row currently loaded into the edit form above the table. */
+  .table tr.row-editing td { background: rgba(45,212,191,0.10); border-color: rgba(45,212,191,0.4); }
 
   /* Sidebar nav */
   .nav-link {

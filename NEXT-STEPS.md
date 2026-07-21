@@ -3,7 +3,25 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
-## ▶ RESUME HERE — Telnyx/PSTN trunk go-live PREPPED (no account yet) (2026-07-21)
+## ▶ RESUME HERE — EDIT-existing-record added to every admin list page (2026-07-21)
+User: could create + delete records (extensions, routes, DIDs, users, etc.) but **couldn't edit** them.
+Fixed across all ten admin list pages. **Green: `npm run build` + 103 tests.** Pattern (reference
+`src/app/(admin)/outbound/page.tsx`): the "Add" form doubles as an **edit form** via a `?edit=<id>` URL
+param — pre-filled fields, a hidden `id`, dynamic heading/button, a Cancel link; each table row gets an
+**Edit** link + `.row-editing` highlight. Most `saveX` actions already supported update-by-id (edit was a
+pure UI gap); **business-hours** was create-only and got update support added (+ its Json `rules` array is
+unflattened back into the day/time fields for prefill).
+- **Covered:** extensions, trunks, dids, inbound, outbound, ring-groups, users, e911, business-hours, provisioning.
+- **Identity fields locked in edit mode** (renaming would orphan Asterisk `ps_*` rows): extension `number`,
+  trunk `name`, device `mac` are `readOnly` (still submit, can't change → delete+recreate to rename).
+- **Trunks** is a client form (`trunk-form.tsx`): takes an `initial` prop, seeds state from the stored trunk,
+  `key`-remounts per row; password blank = keep existing.
+- **Not needed:** voicemail (only a transcribe toggle, boxes derive from extensions), guardrails/settings
+  (singleton forms already show current values), ivr/ai-agents (already had `[id]` editors).
+- **Verified live** against the dev server on :3001: outbound full round-trip; extensions/trunks/provisioning
+  readOnly-identity + prefill; business-hours rules-unflatten (3 day boxes + times + holiday); users pw-keep note.
+
+## ▶ EARLIER — Telnyx/PSTN trunk go-live PREPPED (no account yet) (2026-07-21)
 The user wants real PSTN (was "Telnyx", now leaning **bandwidth.com** but undecided, **no trunk account
 yet**). The trunk plumbing was already built + correct; this session did the credential-free prep +
 fixed real gaps a live trunk would have hit. **Green: `npm run build` + 103 tests.** Full operator

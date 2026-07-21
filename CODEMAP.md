@@ -36,6 +36,12 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `asterisk/scripts/e911-notify.sh` | Kari's Law on-site notify hook (logs; TODO real paging) |
 
 ## Routes (`src/app/`)
+> **Admin list pages are full CRUD.** Each list route (extensions, trunks, dids, inbound, outbound,
+> ring-groups, users, e911, business-hours, provisioning) supports **edit-in-place** via a `?edit=<id>`
+> URL param: the "Add" form doubles as an edit form (pre-filled, hidden `id`, Cancel), each row has an
+> **Edit** link, and the edited row is highlighted (`.row-editing`). Identity fields that key Asterisk
+> realtime — extension `number`, trunk `name`, device `mac` — are **read-only in edit mode** (renaming
+> would orphan `ps_*` rows). Reference impl: `outbound/page.tsx`.
 | Route | File | What it does |
 |---|---|---|
 | `/` | `app/(admin)/page.tsx` | Dashboard: engine status, active channels, counts, recent calls |
