@@ -53,6 +53,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `/inbound` | `app/(admin)/inbound/page.tsx` | Inbound routes (DID → destination) |
 | `/outbound` | `app/(admin)/outbound/page.tsx` | Outbound routes + caller-ID + permission |
 | `/ring-groups` | `app/(admin)/ring-groups/page.tsx` | Ring groups + members |
+| `/queues` | `app/(admin)/queues/page.tsx` | Call queues (ACD): strategy, MOH, ring/wrap/max-wait, announcements, timeout/failover dest, agent members (+penalty) |
 | `/provisioning` | `app/(admin)/provisioning/page.tsx` | Devices (MAC/vendor/model) + per-MAC provisioning URL |
 | `/guardrails` | `app/(admin)/guardrails/page.tsx` | Toll-fraud policy (singleton) + block log |
 | `/e911` | `app/(admin)/e911/page.tsx` | Dispatchable locations + go-live readiness |
@@ -77,6 +78,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | trunks | `trunks/actions.ts`, `trunks/provider-templates.ts`, `trunks/trunk-form.tsx` | BYO trunk → `upsertTrunkPjsip` (endpoint/aor/auth/identify/registration). Provider picker (Telnyx/VoIP.ms/Bandwidth/Twilio/Generic) auto-fills SIP settings + NAT-friendliness warnings; see `TRUNK-SETUP.md` |
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
+| queues | `queues/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue` |
 | provisioning | `provisioning/actions.ts` | Device CRUD; provisioning URL from `provisioning/secrets` |
 | guardrails · e911 · settings | `*/actions.ts` | singletons + E911 locations (reporting is read-only, no actions) |
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
