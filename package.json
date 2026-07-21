@@ -16,6 +16,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:asterisk": "tsx scripts/apply-asterisk-sql.ts",
+    "db:reconcile": "tsx scripts/reconcile.ts",
     "setup": "prisma migrate deploy && tsx prisma/seed.ts && tsx scripts/apply-asterisk-sql.ts",
     "test": "vitest run",
     "test:watch": "vitest",
