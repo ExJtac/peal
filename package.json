@@ -28,7 +28,8 @@
     "smoke:ai": "tsx scripts/ai-smoke.ts",
     "smoke:pstn": "tsx scripts/pstn-smoke.ts",
     "smoke:queue": "tsx scripts/queue-smoke.ts",
-    "smoke:conf": "tsx scripts/conference-smoke.ts"
+    "smoke:conf": "tsx scripts/conference-smoke.ts",
+    "smoke:park": "tsx scripts/parking-smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

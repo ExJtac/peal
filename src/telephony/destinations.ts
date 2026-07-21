@@ -11,6 +11,7 @@ import { decideGuardrail } from "@/lib/guardrail";
 import { classifyDial, digitsOnly, applyDialTransform, matchDialPattern, toE164 } from "@/lib/phone";
 import { parseCallForward } from "@/lib/callForward";
 import { startVoicemailCapture } from "./voicemail";
+import { isParkOrbit, parkedSlot, park, retrieve } from "./parking";
 import { resolveBusinessHours, type HoursRule } from "@/lib/businessHours";
 import type { DestinationType, Extension, RingGroup, BusinessHours } from "@prisma/client";
 
@@ -208,6 +209,17 @@ async function beginInternal(callerChannelId: string, callerNum: string, dialed:
 }
 
 export async function routeInternal(callerChannelId: string, callerNum: string, dialed: string): Promise<void> {
+  // Call parking: dial the orbit to park the caller; dial an occupied slot to retrieve it.
+  if (isParkOrbit(dialed)) {
+    await beginInternal(callerChannelId, callerNum, dialed);
+    return park(callerChannelId);
+  }
+  const slot = parkedSlot(dialed);
+  if (slot !== null) {
+    await beginInternal(callerChannelId, callerNum, dialed);
+    return retrieve(slot, callerChannelId);
+  }
+
   const ext = await db.extension.findUnique({ where: { number: dialed } });
   if (ext?.enabled) {
     const callRecordId = await beginInternal(callerChannelId, callerNum, dialed, ext.id);

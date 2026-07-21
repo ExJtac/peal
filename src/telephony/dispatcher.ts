@@ -6,6 +6,7 @@ import { onStasisStart } from "./routing";
 import { onDialedEnded, onCallerEnded } from "./originate";
 import { onQueueCallerEnded, onQueueAgentEnded, onQueuePlaybackFinished } from "./queue";
 import { onConferenceChannelGone } from "./conference";
+import { onParkChannelGone } from "./parking";
 import { feedDtmf, endIvr } from "./ivrInterpreter";
 import { getSession, deleteSession, activeChannelCount } from "./callSession";
 import { finalizeCallRecord } from "./callRecord";
@@ -50,6 +51,7 @@ export async function dispatch(ev: AriEvent): Promise<void> {
         await onQueueCallerEnded(id).catch(() => {}); // queue caller abandoned / connected caller hung up
         await onQueueAgentEnded(id).catch(() => {}); // queue agent leg ended (ring no-answer / on-call hangup)
         await onConferenceChannelGone(id).catch(() => {}); // conference participant left
+        await onParkChannelGone(id).catch(() => {}); // parked call abandoned / retrieved call ended
         endIvr(id);
         const s = getSession(id);
         if (s) {

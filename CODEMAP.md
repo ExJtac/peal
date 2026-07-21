@@ -102,6 +102,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `originate.ts` | dial-group primitive (bridge + first-answer-wins ring + failover) |
 | `queue.ts` | **call-queue / ACD engine** (stateful): waiting list on MOH + agent-dial scheduler by strategy (RINGALL/LINEAR/FEWEST_CALLS/LEAST_RECENT/RANDOM), answered-bridge, abandon/no-answer/max-wait→failover, hold announcements, `writeQueueSnapshot`→`QueueStatus` (wallboard). Own `pendingAgentDials`/playback maps; mirrors `QUEUE_*` channel vars for recovery. `dialQueue` (from `resolveDestination` QUEUE) + `onAgentAnswered` (routing "queued") + `onQueue*Ended` (dispatcher) |
 | `conference.ts` | **meet-me conferencing**: persistent named mixing bridge, MOH-when-alone, optional record, teardown-when-empty; mirrors `CONF_ID`/`CONF_BRIDGE` vars for recovery. `joinConference` (from `resolveDestination` CONFERENCE / dial the number) + `onConferenceChannelGone` (dispatcher) + `recoverConferences` |
+| `parking.ts` | **call parking**: dial the orbit (`PARK_ORBIT`, default 7000) to park on MOH in the lowest free slot (announced), dial the slot (7001–7010) to retrieve; return-timeout; mirrors `PARK_*` vars for recovery. `park`/`retrieve` (from `routeInternal`) + `onParkChannelGone` + `recoverParking` |
 | `callSession.ts` · `callRecord.ts` · `recording.ts` · `status.ts` · `events.ts` | in-memory registry · CDR create/finalize · **call recording + SUMMARIZE_CALL enqueue** · SystemStatus · typed shapes |
 | `voicemail.ts` | **app-owned voicemail capture over ARI** (greeting → record → `VoicemailMessage` row → TRANSCRIBE_VOICEMAIL enqueue → MWI); `RecordingFinished`/caller-hangup once-guard; native `[vmdirect]` fallback. `sendToVoicemail` delegates here |
 | `stateRecovery.ts` | on ARI (re)connect: re-adopt in-flight channels + `recoverAgents` (AI legs) + `recoverQueues` + `recoverConferences` (re-adopt held queue callers / conference members via surviving bridge) |
@@ -157,7 +158,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/smoke-live.ts` | opt-in live ARI + STT/LLM check |
 | `scripts/ai-smoke.ts` | **opt-in live** AI-receptionist end-to-end (routes a real call → agent → verifies media loop + clean teardown) |
 | `scripts/pstn-smoke.ts` | **opt-in live** outbound-PSTN check (`npm run smoke:pstn -- +1NUMBER [trunk]`): originates a real call out a trunk, watches Ringing→Up, prints pass/fail + inbound checklist |
-| `scripts/queue-smoke.ts` / `scripts/conference-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
+| `scripts/queue-smoke.ts` / `conference-smoke.ts` / `parking-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
