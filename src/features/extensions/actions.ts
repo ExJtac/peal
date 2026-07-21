@@ -18,6 +18,7 @@ const schema = z.object({
   outboundPermission: z.enum(["internal", "local", "national", "international"]),
   ringSeconds: z.coerce.number().int().min(5).max(120),
   sipPassword: z.string().optional().or(z.literal("")),
+  webrtc: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
 });
 
 export async function saveExtension(formData: FormData): Promise<void> {
@@ -33,6 +34,7 @@ export async function saveExtension(formData: FormData): Promise<void> {
     callerIdNumber: data.callerIdNumber || null,
     outboundPermission: data.outboundPermission,
     ringSeconds: data.ringSeconds,
+    webrtc: data.webrtc,
   };
 
   let ext;

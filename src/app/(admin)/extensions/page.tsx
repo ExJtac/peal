@@ -48,6 +48,11 @@ export default async function ExtensionsPage() {
             <label className="label">SIP password (blank = auto-generate)</label>
             <input className="input" name="sipPassword" placeholder="leave blank to generate" />
           </div>
+          <div className="field col-span-2">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" name="webrtc" /> WebRTC (browser softphone endpoint — assign to a portal user for in-browser calling)
+            </label>
+          </div>
           <div className="col-span-2">
             <button className="btn" type="submit">Create extension</button>
           </div>
