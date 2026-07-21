@@ -157,6 +157,11 @@ export async function dialQueue(callerChannelId: string, queue: QueueWithMembers
   armAnnounce(rt, caller);
   armTimeout(rt, caller);
   void serviceQueue(queue.id);
+
+  // Fast-hangup race: if the caller vanished during setup (their ChannelDestroyed fired before they
+  // were in the waiting list), close out the just-created log + bridge now instead of orphaning them.
+  const alive = await ari.getChannel(callerChannelId).catch(() => null);
+  if (!alive) await onQueueCallerEnded(callerChannelId);
 }
 
 // --- agent answered (routing.ts "queued" branch) -------------------------------------------------

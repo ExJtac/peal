@@ -51,6 +51,7 @@ export default async function RingGroupsPage({ searchParams }: { searchParams: P
               <option value="">— none —</option>
               <option value="EXTENSION">Extension</option>
               <option value="RING_GROUP">Ring group</option>
+              <option value="QUEUE">Queue</option>
               <option value="IVR">IVR</option>
               <option value="VOICEMAIL">Voicemail</option>
               <option value="TIME_CONDITION">Time condition</option>

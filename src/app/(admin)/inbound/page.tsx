@@ -28,6 +28,7 @@ export default async function InboundRoutesPage({ searchParams }: { searchParams
             <select className="select" name="destinationType" defaultValue={editing?.destinationType ?? "EXTENSION"}>
               <option value="EXTENSION">Extension</option>
               <option value="RING_GROUP">Ring group</option>
+              <option value="QUEUE">Queue</option>
               <option value="IVR">IVR</option>
               <option value="VOICEMAIL">Voicemail</option>
               <option value="TIME_CONDITION">Time condition</option>

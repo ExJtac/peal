@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 
-const DESTINATION_TYPES = ["EXTENSION", "RING_GROUP", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"] as const;
+const DESTINATION_TYPES = ["EXTENSION", "RING_GROUP", "QUEUE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"] as const;
 const NODE_TYPES = ["MENU", "PLAY", "COLLECT", "TRANSFER", "VOICEMAIL", "DIRECTORY", "HANGUP"] as const;
 
 const optionalDestinationType = z.enum(DESTINATION_TYPES).optional().or(z.literal(""));

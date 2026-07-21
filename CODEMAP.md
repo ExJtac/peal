@@ -78,7 +78,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | trunks | `trunks/actions.ts`, `trunks/provider-templates.ts`, `trunks/trunk-form.tsx` | BYO trunk → `upsertTrunkPjsip` (endpoint/aor/auth/identify/registration). Provider picker (Telnyx/VoIP.ms/Bandwidth/Twilio/Generic) auto-fills SIP settings + NAT-friendliness warnings; see `TRUNK-SETUP.md` |
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
-| queues | `queues/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue` |
+| queues | `queues/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue`. **QUEUE wired into every destination picker** (inbound/business-hours/ivr/ring-group-failover/ai-agent handoff) |
 | provisioning | `provisioning/actions.ts` | Device CRUD; provisioning URL from `provisioning/secrets` |
 | guardrails · e911 · settings | `*/actions.ts` | singletons + E911 locations (reporting is read-only, no actions) |
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
@@ -153,6 +153,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/smoke-live.ts` | opt-in live ARI + STT/LLM check |
 | `scripts/ai-smoke.ts` | **opt-in live** AI-receptionist end-to-end (routes a real call → agent → verifies media loop + clean teardown) |
 | `scripts/pstn-smoke.ts` | **opt-in live** outbound-PSTN check (`npm run smoke:pstn -- +1NUMBER [trunk]`): originates a real call out a trunk, watches Ringing→Up, prints pass/fail + inbound checklist |
+| `scripts/queue-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |

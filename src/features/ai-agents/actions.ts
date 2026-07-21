@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 
 // AI_AGENT itself is intentionally NOT a valid transfer/fallback target (no agent→agent loops).
-const destination = z.enum(["EXTENSION", "RING_GROUP", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL"]);
+const destination = z.enum(["EXTENSION", "RING_GROUP", "QUEUE", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL"]);
 const bool = z.preprocess((v) => v === "on" || v === "true", z.boolean());
 const optDest = z.preprocess((v) => (v === "" || v == null ? undefined : v), destination.optional());
 const intIn = (def: number) => z.preprocess((v) => (v === "" || v == null ? def : Number(v)), z.number().int().min(0));

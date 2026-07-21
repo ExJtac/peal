@@ -26,7 +26,8 @@
     "test:watch": "vitest",
     "smoke:live": "tsx scripts/smoke-live.ts",
     "smoke:ai": "tsx scripts/ai-smoke.ts",
-    "smoke:pstn": "tsx scripts/pstn-smoke.ts"
+    "smoke:pstn": "tsx scripts/pstn-smoke.ts",
+    "smoke:queue": "tsx scripts/queue-smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

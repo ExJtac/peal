@@ -90,6 +90,7 @@ export default async function BusinessHoursPage({ searchParams }: { searchParams
             <select className="select" name="inType" defaultValue={editing?.inType ?? "EXTENSION"}>
               <option value="EXTENSION">Extension</option>
               <option value="RING_GROUP">Ring group</option>
+              <option value="QUEUE">Queue</option>
               <option value="IVR">IVR</option>
               <option value="VOICEMAIL">Voicemail</option>
               <option value="TIME_CONDITION">Time condition</option>
@@ -108,6 +109,7 @@ export default async function BusinessHoursPage({ searchParams }: { searchParams
             <select className="select" name="elseType" defaultValue={editing?.elseType ?? "VOICEMAIL"}>
               <option value="EXTENSION">Extension</option>
               <option value="RING_GROUP">Ring group</option>
+              <option value="QUEUE">Queue</option>
               <option value="IVR">IVR</option>
               <option value="VOICEMAIL">Voicemail</option>
               <option value="TIME_CONDITION">Time condition</option>
