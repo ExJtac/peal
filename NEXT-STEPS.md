@@ -3,7 +3,49 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
-## ▶ RESUME HERE — Call forwarding to mobile + Voicemail→email transcription (2026-07-21)
+## ▶ RESUME HERE — Call-center suite + production hardening ("beast mode", 2026-07-21)
+Two full tracks shipped across 8 commits (`e03bcf3`→`0278a70`). **Green: `npm run build` + 154 tests.**
+Every piece verified LIVE against the VM daemon (4 smokes pass: `smoke:queue`, `smoke:queue -- --internal`,
+`smoke:conf`, `smoke:park`).
+
+**Call-center suite (all new):**
+- **Queues / ACD** — `src/telephony/queue.ts`: stateful waiting-list on MOH + agent scheduler by
+  strategy (RINGALL/LINEAR/FEWEST_CALLS/LEAST_RECENT/RANDOM), answered-bridge, abandon/no-answer/
+  max-wait→failover, hold announcements, daemon-restart recovery (`recoverQueues`). Admin `/queues`,
+  wired into every destination picker. Models `Queue/QueueMember/QueueCallLog/QueueStatus`.
+- **Live wallboard** — `/queues/wallboard` polls `/api/queues/live` (daemon writes `QueueStatus`).
+- **Agent login/pause** — portal card (`setAgentLoggedIn`/`setAgentPaused` → `QueueMember`, read by
+  the engine each service pass).
+- **Softphone Hold + blind Transfer** (SIP.js) + **internal dialing of feature numbers** —
+  `routeInternal` resolves queue/ring-group/conference by number (also the blind-transfer target).
+- **Conferencing** — `src/telephony/conference.ts` + `/conferences` (MOH-when-alone, record, recovery).
+- **Call parking** — `src/telephony/parking.ts` (dial orbit `7000` to park, dial slot `7001-7010` to
+  retrieve; recovery). Env in `.env.example`.
+- New ARI verbs: `stopMoh`, `hold/unhold`, `redirect`, `snoopChannel`, `get/setDeviceState`.
+
+**Production hardening → deployable unattended:**
+- **Supervision** — `asterisk/build/install-control-plane.sh` + `asterisk/build/systemd/*` (systemd
+  units for the 3 daemons + Next app, `Restart=always`, `KillMode=control-group` reaps tsx orphans)
+  + daily `pg_dump` timer + health-alert timer. **PROD VM only** — dev stays manual on the Mac.
+- **Backups** `scripts/backup-db.sh` (both schemas, verified restore). **Health alerting**
+  `scripts/health-check.ts` (email on ARI-down/stale via the SMTP seam). **Reset guard**
+  `scripts/guard-reset.ts` (`npm run db:reset` refuses when the `asterisk` schema has tables).
+- **Login lockout** `src/lib/loginThrottle.ts`. **E911 on-site notify** `/api/e911/notify` +
+  `e911-notify.sh` (Kari's Law; notify before the Dial, fail-soft). **fail2ban** jail
+  `asterisk/security/pbx-asterisk.local`. **Runbook: `HARDENING.md`** (go-live checklist).
+- Seed passwords now env-driven (`SEED_PASSWORD`, warns on the demo default).
+
+**What's left (deferred / needs the user):**
+- **Real PSTN go-live** — user-gated on a REGISTER-capable ITSP account; code complete (`TRUNK-SETUP.md`).
+- **911 call completion** — carrier `telnyx-emergency` endpoint + per-device `DEVICE_CALLBACK` (with PSTN).
+- **Manual/browser checks:** softphone Hold + blind Transfer (needs two WebRTC phones + a human to
+  answer); a live agent answering a queue call (headless smokes prove hold+abandon+recovery, not the
+  human answer — that path is offline-tested).
+- **Config-ready, not enabled:** SIP TLS/SRTP + ARI/HTTP loopback lockdown + fail2ban install (see
+  `HARDENING.md`). **Nice-to-have:** BLF presence state, attended transfer, wallboard SSE (LISTEN/NOTIFY),
+  non-Fanvil renderers, `OutboundRoute.failoverTrunkId` wiring.
+
+## ▶ EARLIER — Call forwarding to mobile + Voicemail→email transcription (2026-07-21)
 Two operator features shipped. **Green: `npm run build` + 121 tests.**
 
 **1. Call forwarding to a mobile** (commit — F1). An extension forwards its calls to an external
