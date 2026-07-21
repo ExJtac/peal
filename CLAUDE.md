@@ -8,10 +8,11 @@ A **custom AI-native PBX** (phone system) to replace 3CX for a single small busi
 (Asterisk REST Interface). Bring-your-own SIP trunk (Telnyx first), auto-provisions any
 IP phone (Fanvil-first), runs on a local Debian VM.
 
-> 🏗️ **STATUS: scaffolding only.** The app is not built yet — this folder currently holds
-> the plan (`BUILD-PLAN.md`), this notes file, `CODEMAP.md`, and `NEXT-STEPS.md`. Start the
-> build at **Phase 0** (`NEXT-STEPS.md`): stand up Lima + Asterisk + ARI and drive one call
-> into `Stasis()` from Node **before** any feature code.
+> ✅ **STATUS: built + green + LIVE.** Admin console + user portal, in-browser WebRTC calling,
+> call recording→AI summaries, and the **real-time AI receptionist** (live externalMedia voice
+> agent) are all built and verified running in the VM (`npm run build` + 89 tests; `npm run smoke:ai`).
+> **Resume from `NEXT-STEPS.md`** (source of truth); navigation in `CODEMAP.md`. Next up: Telnyx
+> trunk → real PSTN (needs the user's SIP creds), then call-center (queues/ACD), then hardening.
 
 > ⚠️ Will be built on **Next.js 16** + **Prisma 7** (breaking changes vs older docs — see
 > `@AGENTS.md`). Gotchas to carry over from the sibling projects:

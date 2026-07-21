@@ -4,8 +4,8 @@
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
 ## Where we are ✅ (in-browser calling + AI receptionist LIVE)
-Built, green (`npm run build` + 84 tests), and the ARI + realtime + WebRTC + AI-voice stack is
-verified running in the VM (`scripts/ai-smoke.ts` passes end-to-end):
+Built, green (`npm run build` + 89 tests), and the ARI + realtime + WebRTC + AI-voice stack is
+verified running in the VM (`npm run smoke:ai` passes end-to-end):
 - **Admin console** (`/`, Admin/Manager): extensions, trunks, DIDs, inbound/outbound routes,
   ring groups, IVR/auto-attendant builder, business hours, provisioning, guardrails, E911,
   reporting, settings, users.
