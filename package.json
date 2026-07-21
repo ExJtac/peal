@@ -20,7 +20,8 @@
     "setup": "prisma migrate deploy && tsx prisma/seed.ts && tsx scripts/apply-asterisk-sql.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke:live": "tsx scripts/smoke-live.ts"
+    "smoke:live": "tsx scripts/smoke-live.ts",
+    "smoke:ai": "tsx scripts/ai-smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

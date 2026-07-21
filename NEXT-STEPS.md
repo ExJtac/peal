@@ -3,9 +3,9 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
-## Where we are ✅ (in-browser calling LIVE)
-Built, green (`npm run build` + 48 tests), and the ARI + realtime + WebRTC stack is verified
-running in the VM:
+## Where we are ✅ (in-browser calling + AI receptionist LIVE)
+Built, green (`npm run build` + 84 tests), and the ARI + realtime + WebRTC + AI-voice stack is
+verified running in the VM (`scripts/ai-smoke.ts` passes end-to-end):
 - **Admin console** (`/`, Admin/Manager): extensions, trunks, DIDs, inbound/outbound routes,
   ring groups, IVR/auto-attendant builder, business hours, provisioning, guardrails, E911,
   reporting, settings, users.
@@ -19,6 +19,9 @@ running in the VM:
   action items + sentiment — shown in Reporting (with an audio player) + the portal. **Mock AI by
   default (free)**; for real transcription set `DEEPGRAM_API_KEY` + `STT_PROVIDER=deepgram` +
   `ANTHROPIC_API_KEY` in `.env` (small per-call cost). Recording needs a real 2-party call.
+- **AI receptionist (flagship):** a call to an `AI_AGENT` destination is answered by Claude over a
+  live externalMedia RTP loop (VAD→STT→Claude tool-use→TTS, with barge-in + transfer/voicemail).
+  Configure at `/ai-agents`; **mock-default (free)**. Details in the section below.
 
 Logins (all `password123`): `admin@pbx.local` (ADMIN) · `manager@pbx.local` (MANAGER) ·
 `user@pbx.local` (USER, ext 2001 WebRTC → portal).
@@ -51,15 +54,30 @@ Then open http://localhost:3001. Health: `curl localhost:3001/api/health` → `a
   `standard_conforming_strings=off` (PG escape crash), `transport-ws` needs a `bind`.
   `.env` has `SIP_SERVER_HOST=192.168.64.2`. Re-sync extensions to Asterisk: `npm run db:reconcile`.
 
+## ✅ Real-time AI receptionist — BUILT + verified live (the flagship)
+A call routed to an **`AI_AGENT`** destination is answered by Claude over a live **externalMedia
+RTP** loop: VAD → streaming STT → Claude (tool-use) → streaming TTS, injected as paced RTP, with
+**barge-in**, and it can **transfer to a human / take a voicemail / answer questions / end the call**.
+- **Configure:** `/ai-agents` (Admin/Manager) → create an agent (greeting, persona, business
+  context/FAQ, transfer target, voicemail ext, fallback, VAD tuning). Then point any DID / inbound
+  route / IVR option / business-hours / ring-group-failover at **AI Receptionist** with the agent id.
+- **Mock by default (free):** the whole pipeline runs offline — the AI speaks a placeholder tone and
+  uses rule-based replies. For real speech set in `.env`: `REALTIME_STT_PROVIDER=deepgram` +
+  `DEEPGRAM_API_KEY`, `REALTIME_TTS_PROVIDER=deepgram|elevenlabs` (+ key/`ELEVENLABS_VOICE_ID`),
+  `ANTHROPIC_API_KEY` (brain, Haiku 4.5 default via `AGENT_LLM_MODEL`). `MEDIA_HOST=192.168.64.1`
+  (Mac↔VM) + `RTP_PORT_START/END` (default 40000-40099) drive the media path.
+- **Verify live (mock):** `npx tsx scripts/ai-smoke.ts` routes a real call → agent → checks the
+  media loop connected + greeting injected + **no leaked RTP port** on teardown. There's a demo
+  `Smoke Receptionist` agent + DID `5559001` → AI_AGENT already seeded by that script.
+- **Left for real STT/TTS keys:** a full multi-turn conversation with real intent (the offline smoke
+  proves the media path + greeting + teardown; multi-turn needs alternating caller audio / real STT).
+
 ## What to build next (recommended order)
 1. **Wire the Telnyx trunk → real PSTN** (bring-your-own SIP): real inbound/outbound to the
    outside world. The trunk/outbound-route/DID model is built — needs the Telnyx account plugged
    in + tested. This is what makes it a full 3CX replacement (right now calling is internal + browser).
-2. **Real-time AI receptionist** (the flagship): STT→Claude→TTS over the live call — answers,
-   understands intent ("reschedule my appointment"), routes or handles it. The WebRTC/externalMedia
-   media path already works, so this is now feasible. Biggest differentiator vs 3CX.
-3. **Call-center: queues/ACD** — hold music, wait position, agent login, live wallboard.
-4. **Then:** conferencing, call parking, BLF/presence; SIP/toll-fraud hardening (fail2ban,
+2. **Call-center: queues/ACD** — hold music, wait position, agent login, live wallboard.
+3. **Then:** conferencing, call parking, BLF/presence; SIP/toll-fraud hardening (fail2ban,
    TLS/SRTP); extension/ring-group edit pages; per-model Fanvil verification; native mobile softphone.
 
 ## Home test with the physical Fanvil (PoE)

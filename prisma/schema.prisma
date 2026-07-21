@@ -53,6 +53,7 @@ enum DestinationType {
   TIME_CONDITION
   HANGUP
   EXTERNAL
+  AI_AGENT
 }
 
 enum RingStrategy {
@@ -114,6 +115,16 @@ enum CallClass {
 enum AiJobKind {
   TRANSCRIBE_VOICEMAIL
   SUMMARIZE_CALL
+}
+
+/// How a real-time AI-receptionist call ended.
+enum AiOutcome {
+  HANDLED
+  TRANSFERRED
+  VOICEMAIL
+  HANGUP
+  FALLBACK
+  ERROR
 }
 
 enum JobStatus {
@@ -385,6 +396,48 @@ model IvrOption {
   @@unique([nodeId, digit])
 }
 
+/// Real-time AI receptionist. A call routed to an AI_AGENT destination is answered by this
+/// persona: it greets, listens (streaming STT), reasons (Claude, tool-use), and speaks
+/// (streaming TTS) over the live media path, and may transfer to a human, take a voicemail,
+/// answer questions, or hang up. Provider seams are mock-default (free); real STT/LLM/TTS turn
+/// on via env keys. See src/telephony/realtime-media/ + src/ai/realtime/.
+model AiAgent {
+  id      String  @id @default(cuid())
+  name    String
+  enabled Boolean @default(true)
+
+  // Persona / knowledge (fed to Claude)
+  greeting        String // spoken first, e.g. "Thanks for calling Acme — how can I help?"
+  systemPrompt    String @default("You are a friendly, concise phone receptionist.") // persona + rules
+  businessContext String? // hours, address, services, FAQ — dumped into the system prompt
+
+  // Voice / model (per-agent overrides; null = use env defaults)
+  voice    String? // TTS voice id (ElevenLabs voice / Deepgram Aura model)
+  llmModel String? // Claude model id override
+
+  // Turn-taking behavior
+  maxTurns        Int     @default(12) // hard cap on back-and-forth before forced fallback
+  endpointingMs   Int     @default(800) // trailing silence that ends the caller's turn
+  bargeIn         Boolean @default(true) // caller may interrupt the AI mid-sentence
+  noInputTimeoutMs Int    @default(7000) // caller silent this long → reprompt / fallback
+  maxReprompts    Int     @default(2)
+
+  // Actions the agent may take
+  allowTransfer Boolean          @default(true)
+  transferType  DestinationType? // where "transfer me to a person" goes (extension / ring group)
+  transferId    String?
+  allowVoicemail Boolean         @default(true)
+  voicemailExtId String?         // extension whose mailbox takes an AI-captured message
+
+  // Where the call goes if the AI errors, hits max turns, or the caller insists on a human
+  // and no transfer target is set.
+  fallbackType DestinationType?
+  fallbackId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model BusinessHours {
   id            String         @id @default(cuid())
   name          String
@@ -427,6 +480,8 @@ model CallRecord {
   aiSummary       String?
   aiActionItems   Json?
   aiSentiment     String?
+  aiAgentId       String? // set when a real-time AI receptionist handled the call
+  aiOutcome       AiOutcome?
   guardrailAction GuardrailAction?
   guardrailReason String?
   transcript      Transcript?

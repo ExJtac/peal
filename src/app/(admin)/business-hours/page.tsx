@@ -82,6 +82,7 @@ export default async function BusinessHoursPage() {
               <option value="TIME_CONDITION">Time condition</option>
               <option value="HANGUP">Hangup</option>
               <option value="EXTERNAL">External</option>
+              <option value="AI_AGENT">AI Receptionist</option>
             </select>
           </div>
           <div className="field">
@@ -99,6 +100,7 @@ export default async function BusinessHoursPage() {
               <option value="TIME_CONDITION">Time condition</option>
               <option value="HANGUP">Hangup</option>
               <option value="EXTERNAL">External</option>
+              <option value="AI_AGENT">AI Receptionist</option>
             </select>
           </div>
           <div className="field">

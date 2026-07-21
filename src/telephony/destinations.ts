@@ -119,6 +119,12 @@ export async function resolveDestination(
       }
       break;
     }
+    case "AI_AGENT": {
+      // Real-time AI receptionist. Dynamic import breaks the destinations ↔ agentSession cycle
+      // (agentSession calls resolveDestination for transfer/voicemail/fallback).
+      const { startAgentSession } = await import("./realtime-media/agentSession");
+      return startAgentSession(callerChannelId, id, callRecordId);
+    }
     case "HANGUP":
     case "EXTERNAL":
     default:

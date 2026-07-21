@@ -16,7 +16,7 @@ const schema = z.object({
   strategy: z.enum(["RINGALL", "HUNT", "MEMORY_HUNT", "RANDOM"]),
   ringSeconds: z.coerce.number().int().min(5).max(300).default(20),
   failoverType: z
-    .enum(["EXTENSION", "RING_GROUP", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL"])
+    .enum(["EXTENSION", "RING_GROUP", "IVR", "VOICEMAIL", "TIME_CONDITION", "HANGUP", "EXTERNAL", "AI_AGENT"])
     .optional()
     .or(z.literal("")),
   failoverId: z.string().trim().optional().or(z.literal("")),

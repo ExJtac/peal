@@ -86,12 +86,42 @@ export const ari = {
       "POST",
       `/channels/${id}/record${qs({ name, format: "wav", maxDurationSeconds: opts.maxDurationSeconds, ifExists: "overwrite" })}`,
     ),
+  /**
+   * Create an externalMedia channel: Asterisk streams the bridge's audio to `external_host`
+   * (our Node UDP RTP server) and injects RTP we send back (symmetric). Added to a mixing
+   * bridge with the caller, this is the live media path for the real-time AI agent. The
+   * returned channel re-enters Stasis as `UnicastRTP/…` — routing skips those (agent-owned).
+   */
+  externalMedia: (opts: {
+    external_host: string; // "host:port" — where Asterisk sends RTP (our Mac UDP server)
+    format: string; // "slin16" (raw 16-bit PCM 16kHz) — no companding
+    encapsulation?: string; // "rtp"
+    transport?: string; // "udp"
+    connection_type?: string; // "client" (Asterisk connects out to us)
+    direction?: string; // "both"
+    variables?: Record<string, string>;
+  }) =>
+    req<AriChannel>(
+      "POST",
+      `/channels/externalMedia${qs({
+        app: ARI_APP,
+        external_host: opts.external_host,
+        format: opts.format,
+        encapsulation: opts.encapsulation ?? "rtp",
+        transport: opts.transport ?? "udp",
+        connection_type: opts.connection_type ?? "client",
+        direction: opts.direction ?? "both",
+      })}`,
+      opts.variables ? { variables: opts.variables } : undefined,
+    ),
 
   // --- bridges ---
   listBridges: () => req<AriBridge[]>("GET", "/bridges"),
   createBridge: (type = "mixing") => req<AriBridge>("POST", `/bridges${qs({ type })}`),
   addToBridge: (bridgeId: string, channelId: string) =>
     req<void>("POST", `/bridges/${bridgeId}/addChannel${qs({ channel: channelId })}`),
+  removeFromBridge: (bridgeId: string, channelId: string) =>
+    req<void>("POST", `/bridges/${bridgeId}/removeChannel${qs({ channel: channelId })}`),
   destroyBridge: (bridgeId: string) => req<void>("DELETE", `/bridges/${bridgeId}`),
   startMoh: (bridgeId: string) => req<void>("POST", `/bridges/${bridgeId}/moh`),
   recordBridge: (bridgeId: string, name: string) =>

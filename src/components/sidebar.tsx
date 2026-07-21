@@ -12,6 +12,7 @@ const LINKS: [string, string][] = [
   ["/outbound", "Outbound Routes"],
   ["/ring-groups", "Ring Groups"],
   ["/ivr", "IVR / Auto-Attendant"],
+  ["/ai-agents", "AI Receptionist"],
   ["/business-hours", "Business Hours"],
   ["/voicemail", "Voicemail"],
   ["/provisioning", "Provisioning"],

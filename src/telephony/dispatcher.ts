@@ -9,6 +9,7 @@ import { getSession, deleteSession, activeChannelCount } from "./callSession";
 import { finalizeCallRecord } from "./callRecord";
 import { enqueueCallSummary } from "./recording";
 import { setStatus } from "./status";
+import { agentByCaller, agentByEm } from "./realtime-media/agentRegistry";
 
 export async function dispatch(ev: AriEvent): Promise<void> {
   try {
@@ -16,12 +17,21 @@ export async function dispatch(ev: AriEvent): Promise<void> {
       case "StasisStart":
         await onStasisStart(ev);
         break;
-      case "ChannelDtmfReceived":
-        if (ev.channel && ev.digit) feedDtmf(ev.channel.id, ev.digit);
+      case "ChannelDtmfReceived": {
+        if (!ev.channel || !ev.digit) break;
+        // An AI-agent call owns its DTMF (barge-in + operator shortcut); else feed the IVR.
+        const agent = agentByCaller(ev.channel.id);
+        if (agent) agent.onDtmf(ev.digit);
+        else feedDtmf(ev.channel.id, ev.digit);
         break;
+      }
       case "ChannelDestroyed": {
         const id = ev.channel?.id;
         if (!id) break;
+        // If an AI agent owns this channel (caller or its externalMedia leg), let it tear down /
+        // reroute BEFORE the generic session finalize below.
+        const agent = agentByCaller(id) ?? agentByEm(id);
+        if (agent) await agent.handleChannelGone(id).catch(() => {});
         await onDialedEnded(id).catch(() => {});
         await onCallerEnded(id).catch(() => {});
         endIvr(id);

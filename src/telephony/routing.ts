@@ -9,6 +9,10 @@ import type { AriEvent } from "./events";
 export async function onStasisStart(event: AriEvent): Promise<void> {
   const channel = event.channel;
   if (!channel) return;
+  // externalMedia channels (the real-time AI media leg) re-enter Stasis with no args. The AI
+  // agent session already owns them (added to its bridge by the id returned from create), so
+  // routing must NOT touch them — otherwise the default branch would hang them up.
+  if (channel.name?.startsWith("UnicastRTP/")) return;
   const args = event.args ?? [];
   const kind = args[0];
   const callerNum = channel.caller?.number ?? "";
