@@ -84,7 +84,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 |---|---|---|
 | auth | `auth/actions.ts`, `auth/login-form.tsx` | login/logout (seeded admin) |
 | extensions | `extensions/actions.ts` | ext CRUD → `upsertExtensionPjsip` (ps_endpoint/auth/aor) + mailbox |
-| trunks | `trunks/actions.ts`, `trunks/provider-templates.ts`, `trunks/trunk-form.tsx` | BYO trunk → `upsertTrunkPjsip` (endpoint/aor/auth/identify/registration). Provider picker (Telnyx/VoIP.ms/Bandwidth/Twilio/Generic) auto-fills SIP settings + NAT-friendliness warnings; see `TRUNK-SETUP.md` |
+| trunks | `trunks/actions.ts`, `trunks/provider-templates.ts`, `trunks/trunk-form.tsx` | BYO trunk → `upsertTrunkPjsip` (endpoint/aor/auth/identify/registration). Provider picker + NAT warnings; **`mediaEncryption` NONE/SDES/DTLS → `media_encryption` on the trunk endpoint (SRTP; needs transport=TLS)**; see `TRUNK-SETUP.md` |
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
 | queues · conferences | `queues/actions.ts`, `queues/wallboard.tsx`, `conferences/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue`. **QUEUE wired into every destination picker** (inbound/business-hours/ivr/ring-group-failover/ai-agent handoff). `wallboard.tsx` (client) polls `/api/queues/live` |

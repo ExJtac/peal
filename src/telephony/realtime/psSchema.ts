@@ -17,6 +17,9 @@ const TRUNK_TRANSPORT: Record<string, string> = {
 export function trunkTransport(trunk: Pick<Trunk, "transport">): string {
   return TRUNK_TRANSPORT[trunk.transport] ?? "transport-udp";
 }
+// Our MediaEncryption enum → Asterisk's media_encryption value (no | sdes | dtls). NONE = omit the
+// key so default trunk rows stay byte-identical. Only meaningful when transport=TLS + a cert exists.
+const MEDIA_ENCRYPTION: Record<string, string> = { SDES: "sdes", DTLS: "dtls" };
 // SIP URIs to the ITSP must carry an explicit ;transport= for TCP/TLS (UDP is the default, so it
 // is left off). TLS also promotes the scheme to sips:.
 function uriFor(trunk: Pick<Trunk, "transport">, host: string, port: number): string {
@@ -89,6 +92,8 @@ export function endpointRowForTrunk(trunk: Trunk): Row {
     from_user: trunk.fromUser ?? "",
     from_domain: trunk.fromDomain ?? trunk.sipServer,
   };
+  const enc = MEDIA_ENCRYPTION[trunk.mediaEncryption];
+  if (enc) row.media_encryption = enc;
   if (trunk.authMode === "REGISTER" || trunk.username) row.outbound_auth = trunk.name;
   return row;
 }

@@ -20,6 +20,7 @@ function trunk(overrides: Partial<Trunk> = {}): Trunk {
     sipServer: "sip.telnyx.com",
     port: 5060,
     transport: "UDP",
+    mediaEncryption: "NONE",
     username: null,
     passwordEnc: null,
     fromDomain: null,
@@ -66,6 +67,12 @@ describe("endpointRowForTrunk", () => {
   it("honors the chosen transport (regression: was hardcoded to UDP)", () => {
     expect(endpointRowForTrunk(trunk({ transport: "TCP" })).transport).toBe("transport-tcp");
     expect(endpointRowForTrunk(trunk({ transport: "TLS" })).transport).toBe("transport-tls");
+  });
+
+  it("emits media_encryption only when set — NONE omitted, SDES/DTLS mapped to Asterisk values", () => {
+    expect(endpointRowForTrunk(trunk()).media_encryption).toBeUndefined();
+    expect(endpointRowForTrunk(trunk({ transport: "TLS", mediaEncryption: "SDES" })).media_encryption).toBe("sdes");
+    expect(endpointRowForTrunk(trunk({ transport: "TLS", mediaEncryption: "DTLS" })).media_encryption).toBe("dtls");
   });
 
   it("sets outbound_auth for a credential/REGISTER trunk but not for pure IP-auth", () => {

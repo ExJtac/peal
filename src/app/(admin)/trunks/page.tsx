@@ -18,6 +18,7 @@ export default async function TrunksPage({ searchParams }: { searchParams: Promi
         provider: row.provider,
         authMode: row.authMode,
         transport: row.transport,
+        mediaEncryption: row.mediaEncryption,
         sipServer: row.sipServer,
         port: row.port,
         username: row.username ?? "",

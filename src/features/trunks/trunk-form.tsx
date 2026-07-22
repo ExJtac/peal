@@ -12,6 +12,7 @@ export interface TrunkInitial {
   provider: string;
   authMode: TrunkTemplate["authMode"];
   transport: TrunkTemplate["transport"];
+  mediaEncryption: string; // NONE | SDES | DTLS
   sipServer: string;
   port: number;
   username: string;
@@ -31,6 +32,7 @@ function fieldsFromTemplate(t: TrunkTemplate) {
   return {
     authMode: t.authMode,
     transport: t.transport,
+    mediaEncryption: "NONE" as string,
     sipServer: t.sipServer,
     port: String(t.port),
     authIps: t.authIps.join(", "),
@@ -44,6 +46,7 @@ function fieldsFromInitial(i: TrunkInitial) {
   return {
     authMode: i.authMode,
     transport: i.transport,
+    mediaEncryption: i.mediaEncryption,
     sipServer: i.sipServer,
     port: String(i.port),
     authIps: i.authIps,
@@ -110,6 +113,17 @@ export function TrunkForm({ initial }: { initial?: TrunkInitial }) {
           <option value="TCP">TCP</option>
           <option value="TLS">TLS</option>
         </select>
+      </div>
+      <div className="field">
+        <label className="label">Media encryption (SRTP)</label>
+        <select className="select" name="mediaEncryption" value={f.mediaEncryption} onChange={(e) => setF({ ...f, mediaEncryption: e.target.value })}>
+          <option value="NONE">None</option>
+          <option value="SDES">SRTP (SDES)</option>
+          <option value="DTLS">DTLS-SRTP</option>
+        </select>
+        {f.transport !== "TLS" && f.mediaEncryption !== "NONE" && (
+          <p className="text-amber-600 text-xs mt-1">SRTP needs TLS transport (+ a cert) to actually encrypt media.</p>
+        )}
       </div>
       <div className="field">
         <label className="label">SIP server</label>

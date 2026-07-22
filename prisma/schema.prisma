@@ -43,6 +43,13 @@ enum SipTransport {
   TLS
 }
 
+// SIP media (RTP) encryption. Asterisk values: no | sdes | dtls. Only meaningful over TLS transport.
+enum MediaEncryption {
+  NONE
+  SDES
+  DTLS
+}
+
 /// Where an inbound call / IVR option / ring-group failure goes. destinationId is a
 /// polymorphic pointer into the matching table (kept as a scalar, not a Prisma relation).
 enum DestinationType {
@@ -283,6 +290,7 @@ model Trunk {
   sipServer       String
   port            Int           @default(5060)
   transport       SipTransport  @default(UDP)
+  mediaEncryption MediaEncryption @default(NONE) // SRTP for trunk media (needs transport=TLS)
   username        String?
   passwordEnc     String?
   fromDomain      String?
