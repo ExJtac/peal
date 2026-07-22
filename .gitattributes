@@ -1,0 +1,4 @@
+# peal is deployed on Linux. Enforce LF line endings so shell scripts and configs run
+# correctly even when the repo is cloned or edited on Windows — a single CRLF (\r) in
+# install.sh or a systemd unit breaks bash / the service. Detected binaries are left alone.
+* text=auto eol=lf

@@ -1,0 +1,59 @@
+# -*- mode: ruby -*-
+# test/vm/Vagrantfile — spin up a disposable Debian 13 VM and run peal's install.sh end-to-end.
+# Cross-platform (Windows / macOS / Linux) via VirtualBox. Full guide: README.md next to this file.
+#
+#   cd test/vm
+#   vagrant up            # builds Debian 13 + runs install.sh (~20-40 min; compiles Asterisk)
+#   #   → then open http://localhost:3001  (admin@pbx.local / the password printed at the end)
+#   vagrant ssh           # poke around inside the guest
+#   vagrant destroy -f    # throw the VM away
+#
+# By DEFAULT it installs the PUBLISHED installer straight from GitHub (needs the repo pushed
+# public). To test your LOCAL working copy instead (no push needed):
+#   PEAL_SOURCE=local vagrant up            # (needs an rsync on PATH; Git-for-Windows ships one)
+
+REPO_OWNER  = ENV.fetch("PEAL_OWNER",  "ExJtac")
+REPO_NAME   = ENV.fetch("PEAL_NAME",   "peal")
+REPO_BRANCH = ENV.fetch("PEAL_BRANCH", "main")
+SOURCE      = ENV.fetch("PEAL_SOURCE", "github")   # "github" (default) | "local"
+
+Vagrant.configure("2") do |config|
+  config.vm.box      = "debian/trixie64"   # official Debian 13 (trixie) box
+  config.vm.hostname = "peal-test"
+
+  # Reach the web console from your host browser at http://localhost:3001
+  config.vm.network "forwarded_port", guest: 3001, host: 3001, host_ip: "127.0.0.1", auto_correct: true
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name   = "peal-test"
+    vb.cpus   = 4
+    vb.memory = 5120   # 5 GiB — Asterisk compiles from source
+  end
+  # Hyper-V (Windows Pro): `vagrant up --provider hyperv` also works; VirtualBox is the default
+  # because it runs on every Windows edition (incl. Home).
+
+  if SOURCE == "local"
+    # Install from your working tree — no push required. rsync avoids needing VirtualBox Guest
+    # Additions; on Windows it needs an rsync on PATH (Git-for-Windows / cygwin provides one).
+    config.vm.synced_folder "../..", "/repo", type: "rsync",
+      rsync__exclude: ["node_modules/", ".next/", ".git/"]
+    config.vm.provision "shell", inline: <<~'SHELL'
+      set -euo pipefail
+      echo "==> Installing peal from LOCAL source (/repo -> /opt/pbx)"
+      mkdir -p /opt/pbx
+      tar -C /repo --exclude=node_modules --exclude=.next --exclude=.git -cf - . | tar -C /opt/pbx -xf -
+      find /opt/pbx -maxdepth 3 -name '*.sh' -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+      chmod +x /opt/pbx/install.sh /opt/pbx/asterisk/build/*.sh
+      PBX_DIR=/opt/pbx bash /opt/pbx/install.sh
+    SHELL
+  else
+    # DEFAULT: install the published product straight from GitHub (repo must be public + pushed).
+    raw = "https://raw.githubusercontent.com/#{REPO_OWNER}/#{REPO_NAME}/#{REPO_BRANCH}/install.sh"
+    git = "https://github.com/#{REPO_OWNER}/#{REPO_NAME}.git"
+    config.vm.provision "shell", inline: <<~SHELL
+      set -euo pipefail
+      echo "==> Installing peal from #{git} (#{REPO_BRANCH})"
+      curl -fsSL "#{raw}" | REPO_URL="#{git}" REPO_BRANCH="#{REPO_BRANCH}" bash
+    SHELL
+  end
+end
