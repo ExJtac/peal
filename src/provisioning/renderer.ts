@@ -30,12 +30,16 @@ export interface ProvisioningContext {
   sipServer: string;
   sipPort: number;
   transport: "udp" | "tcp" | "tls";
+  srtp?: boolean; // emit SRTP media keys (dormant until a TLS transport toggle sets it)
   sipDomain: string;
   account: ProvisioningAccount;
   codecs: string[];
   ntpServer?: string;
   timezone?: string;
   provisioningBaseUrl?: string; // where the phone fetches future config updates
+  provisioningUrl?: string; // full per-device TOKENED URL (the scheduled-poll re-fetch target)
+  pollHours?: number; // re-fetch config every N hours (0 / undefined = off)
+  webAdmin?: { user: string; password: string }; // phone web-UI admin login pushed into the config
   firmwareUrl?: string;
   voicemailNumber?: string;
   e911CallbackNumber?: string;

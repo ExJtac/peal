@@ -1,8 +1,11 @@
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
-import { saveDevice, deleteDevice } from "@/features/provisioning/actions";
+import { saveDevice, deleteDevice, regenerateWebPassword } from "@/features/provisioning/actions";
 import { DeviceControls, RebootAll } from "@/features/provisioning/device-controls";
+import { WebAccess } from "@/features/provisioning/web-access";
 import { provisioningToken } from "@/provisioning/secrets";
+import { decryptSecret } from "@/lib/crypto-vault";
+import { hostFromForwardedFor } from "@/lib/net";
 import { appUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +88,7 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
               <th>Vendor / Model</th>
               <th>Extension</th>
               <th>Provisioning URL</th>
+              <th>Web access</th>
               <th>Last seen</th>
               <th>Controls</th>
               <th></th>
@@ -93,6 +97,13 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
           <tbody>
             {devices.map((d) => {
               const url = `${base}/provision/${d.mac}.cfg?token=${provisioningToken(d.mac)}`;
+              const host = hostFromForwardedFor(d.lastProvisionedIp);
+              let webPw: string | null = null;
+              try {
+                webPw = d.webAdminPasswordEnc ? decryptSecret(d.webAdminPasswordEnc) : null;
+              } catch {
+                webPw = null; // stale ciphertext (e.g. CRED_SECRET changed) — show none rather than crash
+              }
               return (
                 <tr key={d.id} className={editing?.id === d.id ? "row-editing" : undefined}>
                   <td className="font-mono">{d.mac}</td>
@@ -102,6 +113,13 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
                   <td>{d.extension ? `${d.extension.number}` : <span className="muted">—</span>}</td>
                   <td>
                     <code className="text-xs break-all">{url}</code>
+                  </td>
+                  <td>
+                    <WebAccess user={d.webAdminUser} password={webPw} host={host} />
+                    <form action={regenerateWebPassword} className="inline">
+                      <input type="hidden" name="id" value={d.id} />
+                      <button className="btn-ghost text-xs" type="submit">Regenerate pw</button>
+                    </form>
                   </td>
                   <td className="muted text-xs">{d.lastProvisionedAt ? d.lastProvisionedAt.toLocaleString() : "never"}</td>
                   <td>
@@ -119,7 +137,7 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
             })}
             {devices.length === 0 && (
               <tr>
-                <td colSpan={7} className="muted">No devices yet. Add your Fanvil phones by MAC.</td>
+                <td colSpan={8} className="muted">No devices yet. Add your Fanvil phones by MAC.</td>
               </tr>
             )}
           </tbody>

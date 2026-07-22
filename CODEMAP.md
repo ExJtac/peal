@@ -88,7 +88,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
 | queues · conferences | `queues/actions.ts`, `queues/wallboard.tsx`, `conferences/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue`. **QUEUE wired into every destination picker** (inbound/business-hours/ivr/ring-group-failover/ai-agent handoff). `wallboard.tsx` (client) polls `/api/queues/live` |
-| provisioning | `provisioning/actions.ts`, `provisioning/reboot.ts`, `provisioning/device-controls.tsx` | Device CRUD; provisioning URL from `provisioning/secrets`; **reboot / force-provision** push (`reboot.ts` → `telephony/ami`, client buttons in `device-controls.tsx`) |
+| provisioning | `provisioning/actions.ts`, `provisioning/reboot.ts`, `provisioning/device-controls.tsx`, `provisioning/web-access.tsx` | Device CRUD (+ generated **web-admin pw**, `regenerateWebPassword`); provisioning URL from `provisioning/secrets`; **reboot / force-provision** push (`reboot.ts` → `telephony/ami`, buttons in `device-controls.tsx`); **phone web-UI link + creds** (`web-access.tsx`) |
 | guardrails · e911 · settings | `*/actions.ts` | singletons + E911 locations (reporting is read-only, no actions) |
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
 | business-hours · voicemail · ivr | `*/actions.ts` | time conditions · VM transcribe toggle · IVR flow/node/option CRUD |
@@ -131,8 +131,8 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 ## Provisioning (`src/provisioning/`)
 | File | Responsibility |
 |---|---|
-| `renderer.ts` · `registry.ts` · `context.ts` | `DeviceRenderer` interface + vendor dispatch + DB-backed config context |
-| `vendors/fanvil.ts` | Fanvil config (mandatory header + SIP account + BLF keys) — golden-tested |
+| `renderer.ts` · `registry.ts` · `context.ts` | `DeviceRenderer` interface (+ `webAdmin`/`provisioningUrl`/`pollHours`/`srtp`) + vendor dispatch + DB-backed config context (decrypts web-admin pw, tokened poll URL) |
+| `vendors/fanvil.ts` | Fanvil config (header + SIP account + BLF keys + **web-admin login** + **scheduled-poll repeat** + SRTP-when-set) — golden-tested |
 | `secrets.ts` · `sipPnp.ts` | per-MAC HMAC token + SIP-PnP parse/response helpers |
 | `vendors/{yealink,grandstream,poly}.ts` | `[later]` — same interface |
 
@@ -153,7 +153,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 |---|---|
 | `db.ts` · `env.ts` · `queue.ts` · `heartbeat.ts` | Prisma+pg singleton · typed env · AiJob queue · heartbeat wrapper |
 | `auth.ts` · `guards.ts` · `password.ts` · `crypto-vault.ts` | JWT session · role guards · bcrypt · AES-256-GCM vault |
-| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` · `health.ts` · `loginThrottle.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize · **control-plane health verdict** (pure; drives the health-alert timer) |
+| `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` · `health.ts` · `loginThrottle.ts` · `net.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize · **control-plane health verdict** (pure; drives the health-alert timer) · **XFF→safe host** (phone web-link sanitizer) |
 | `src/components/sidebar.tsx` | admin nav (client, active link) |
 
 ## Data + scripts + tests
@@ -169,4 +169,4 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
-| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** · **ami (AMI framing/parse + socket round-trip)** (offline) |
+| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning (+ **web-auth/SRTP/poll**) · **net (XFF sanitize)** · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** · **ami (AMI framing/parse + socket round-trip)** (offline) |

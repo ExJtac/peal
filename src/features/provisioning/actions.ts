@@ -2,12 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 import { encryptSecret } from "@/lib/crypto-vault";
 import { normalizeMac, isValidMac } from "@/lib/ids";
 import { provisioningToken } from "@/provisioning/secrets";
+
+/** A strong, phone-web-UI-friendly password (12 base64url chars). */
+function newWebPassword(): string {
+  return randomBytes(9).toString("base64url");
+}
 
 const schema = z.object({
   mac: z.string().trim(),
@@ -38,11 +44,22 @@ export async function saveDevice(formData: FormData): Promise<void> {
       extensionId: data.extensionId || null,
       timezone: data.timezone || null,
       provisioningTokenEnc: encryptSecret(provisioningToken(mac)),
+      webAdminPasswordEnc: encryptSecret(newWebPassword()),
     },
   });
 
   revalidatePath("/provisioning");
   redirect("/provisioning");
+}
+
+/** Rotate a phone's web-UI admin password (re-provision the phone afterward to apply it). */
+export async function regenerateWebPassword(formData: FormData): Promise<void> {
+  await requireManager();
+  const id = String(formData.get("id") ?? "");
+  await db.device
+    .update({ where: { id }, data: { webAdminPasswordEnc: encryptSecret(newWebPassword()) } })
+    .catch(() => {});
+  revalidatePath("/provisioning");
 }
 
 export async function deleteDevice(formData: FormData): Promise<void> {

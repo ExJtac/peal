@@ -212,6 +212,8 @@ model Device {
   extension           Extension?   @relation(fields: [extensionId], references: [id], onDelete: SetNull)
   lineKeys            Json? // [{ index, type: "blf"|"speeddial"|"line", value, label }]
   provisioningTokenEnc String
+  webAdminUser        String       @default("admin") // phone web-UI login (pushed in the provisioned config)
+  webAdminPasswordEnc String? // AES-256-GCM (crypto-vault); generated per device
   firmwareTarget      String?
   timezone            String?
   e911LocationId      String?
@@ -679,6 +681,7 @@ model CompanySettings {
   sipDomain       String   @default("pbx.local")
   externalIp      String?
   recordCalls     Boolean  @default(false)
+  provisioningPollHours Int @default(24) // phones re-fetch config every N hours (0 = off)
   updatedAt       DateTime @updatedAt
 }
 

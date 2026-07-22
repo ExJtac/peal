@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto-vault";
 import { SIP_DOMAIN, SIP_SERVER_HOST, appUrl } from "@/lib/env";
+import { provisioningToken } from "./secrets";
 import type { DeviceInfo, LineKey, ProvisioningContext } from "./renderer";
 
 // Builds the canonical Device + ProvisioningContext for a MAC by reading the assigned
@@ -41,6 +42,12 @@ export async function loadProvisioning(
     ntpServer: "pool.ntp.org",
     timezone: dev.timezone ?? company?.timezone ?? undefined,
     provisioningBaseUrl: `${appUrl()}/provision`,
+    // Full TOKENED URL the phone re-fetches on its scheduled poll (the tokenless base would 403).
+    provisioningUrl: `${appUrl()}/provision/${dev.mac}.cfg?token=${provisioningToken(dev.mac)}`,
+    pollHours: company?.provisioningPollHours ?? 24,
+    webAdmin: dev.webAdminPasswordEnc
+      ? { user: dev.webAdminUser, password: decryptSecret(dev.webAdminPasswordEnc) }
+      : undefined,
     voicemailNumber: "*97",
     e911CallbackNumber: ext.callerIdNumber ?? undefined,
   };

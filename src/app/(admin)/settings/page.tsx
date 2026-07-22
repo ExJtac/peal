@@ -36,6 +36,11 @@ export default async function SettingsPage() {
             <input className="input" name="externalIp" defaultValue={settings?.externalIp ?? ""} placeholder="optional (public IP for NAT)" />
           </div>
           <div className="field col-span-2">
+            <label className="label">Phone config poll interval (hours)</label>
+            <input className="input" type="number" name="provisioningPollHours" min={0} max={168} defaultValue={settings?.provisioningPollHours ?? 24} />
+            <p className="muted text-xs mt-1">Phones re-fetch their provisioning config every N hours (0 = off). Reboot a phone to apply immediately.</p>
+          </div>
+          <div className="field col-span-2">
             <label className="inline-flex items-center gap-2 text-sm">
               <input type="checkbox" name="recordCalls" defaultChecked={settings?.recordCalls ?? false} /> Record calls for AI transcription + summaries
             </label>

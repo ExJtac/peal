@@ -36,6 +36,41 @@ describe("fanvil renderer", () => {
     expect(text).toContain("SIP1 Register Pswd :s3cret");
   });
   it("includes the BLF function key", () => expect(text).toContain("Sales"));
+  it("omits web/SRTP/poll blocks when those context fields are unset", () => {
+    expect(text).not.toContain("WEB CONFIG MODULE");
+    expect(text).not.toContain("Enable SRTP");
+    expect(text).not.toContain("Repeat Cycle");
+  });
+});
+
+describe("fanvil renderer — web access, SRTP, scheduled poll", () => {
+  const ctxFull: ProvisioningContext = {
+    ...ctx,
+    transport: "tls",
+    srtp: true,
+    provisioningUrl: "http://localhost:3001/provision/0c383e112233.cfg?token=abc123",
+    pollHours: 12,
+    webAdmin: { user: "admin", password: "Sekret9" },
+  };
+  const text = fanvilRenderer.render(device, ctxFull).body.toString("utf8");
+
+  it("pushes the web-admin credentials", () => {
+    expect(text).toContain("<WEB CONFIG MODULE>");
+    expect(text).toContain("Web Authentication User :admin");
+    expect(text).toContain("Web Authentication Password :Sekret9");
+  });
+  it("enables SRTP + TLS transport", () => {
+    expect(text).toContain("SIP1 Enable SRTP :1");
+    expect(text).toContain("SIP1 SIP Transport :2"); // Fanvil transport code 2 = TLS
+  });
+  it("emits the tokened poll URL + repeat interval", () => {
+    expect(text).toContain("Server Address :http://localhost:3001/provision/0c383e112233.cfg?token=abc123");
+    expect(text).toContain("Repeat Cycle :12 Hour");
+  });
+  it("omits the repeat interval when pollHours is 0", () => {
+    const t0 = fanvilRenderer.render(device, { ...ctxFull, pollHours: 0 }).body.toString("utf8");
+    expect(t0).not.toContain("Repeat Cycle");
+  });
 });
 
 describe("registry", () => {

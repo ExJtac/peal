@@ -13,6 +13,7 @@ const schema = z.object({
   sipDomain: z.string().trim().min(1),
   externalIp: z.string().trim().optional().or(z.literal("")),
   recordCalls: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  provisioningPollHours: z.coerce.number().int().min(0).max(168),
 });
 
 export async function saveSettings(formData: FormData): Promise<void> {
@@ -26,6 +27,7 @@ export async function saveSettings(formData: FormData): Promise<void> {
     sipDomain: data.sipDomain,
     externalIp: data.externalIp || null,
     recordCalls: data.recordCalls,
+    provisioningPollHours: data.provisioningPollHours,
   };
 
   await db.companySettings.upsert({

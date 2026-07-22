@@ -41,9 +41,19 @@ export const fanvilRenderer: DeviceRenderer = {
     L.push(`SIP1 Proxy Addr :${ctx.sipServer}`);
     L.push(`SIP1 Proxy Port :${ctx.sipPort}`);
     L.push(`SIP1 SIP Transport :${transportCode(ctx.transport)}`);
+    if (ctx.srtp) L.push(`SIP1 Enable SRTP :1`); // FLAG: verify Fanvil SRTP key on the handset
     L.push(`SIP1 Server Name :${ctx.sipDomain}`);
     if (a.callerId) L.push(`SIP1 Local Number :${a.callerId}`);
     L.push("");
+
+    if (ctx.webAdmin) {
+      // Phone web-UI admin login so an operator can reach http://<phone-ip> with known creds.
+      // FLAG: verify Fanvil web-auth key names against a real handset (golden test locks these).
+      L.push("<WEB CONFIG MODULE>");
+      L.push(`Web Authentication User :${ctx.webAdmin.user}`);
+      L.push(`Web Authentication Password :${ctx.webAdmin.password}`);
+      L.push("");
+    }
 
     if (device.lineKeys && device.lineKeys.length > 0) {
       L.push("<FUNCTION KEY MODULE>");
@@ -61,10 +71,19 @@ export const fanvilRenderer: DeviceRenderer = {
     if (ctx.timezone) L.push(`Time Zone Name :${ctx.timezone}`);
     L.push("");
 
-    if (ctx.provisioningBaseUrl) {
+    // Prefer the full per-device TOKENED URL so the scheduled poll re-fetch authenticates
+    // (the tokenless base would 403); fall back to the base for callers that don't set it.
+    const updateUrl = ctx.provisioningUrl ?? ctx.provisioningBaseUrl;
+    if (updateUrl) {
       L.push("<AUTOUPDATE CONFIG MODULE>");
-      L.push(`Server Address :${ctx.provisioningBaseUrl}`);
+      L.push(`Server Address :${updateUrl}`);
       L.push(`Update Mode :2`); // 2 = update via configured URL
+      if (ctx.pollHours && ctx.pollHours > 0) {
+        // Re-fetch config every N hours so changes reach the phone without a manual push.
+        // FLAG: verify Fanvil repeat keys on the handset (golden test locks these).
+        L.push(`Repeat Active :1`);
+        L.push(`Repeat Cycle :${ctx.pollHours} Hour`);
+      }
       L.push("");
     }
 
