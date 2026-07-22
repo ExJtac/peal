@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
-import { saveDevice, deleteDevice, regenerateWebPassword } from "@/features/provisioning/actions";
+import { deleteDevice, regenerateWebPassword } from "@/features/provisioning/actions";
 import { DeviceControls, RebootAll } from "@/features/provisioning/device-controls";
+import { DeviceForm } from "@/features/provisioning/device-form";
 import { WebAccess } from "@/features/provisioning/web-access";
 import { provisioningToken } from "@/provisioning/secrets";
 import { decryptSecret } from "@/lib/crypto-vault";
@@ -32,48 +33,24 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
 
       <div className={`card mb-8${editing ? " card-editing" : ""}`}>
         <h2 className="font-medium mb-3">{editing ? "Edit device" : "Add device"}</h2>
-        {/* key forces the uncontrolled inputs to remount with fresh defaults when switching rows. */}
-        <form key={editing?.id ?? "new"} action={saveDevice} className="grid grid-cols-2 gap-4">
-          {editing && <input type="hidden" name="id" value={editing.id} />}
-          <div className="field">
-            <label className="label">MAC address</label>
-            {/* MAC is the upsert key: read-only when editing so the same device is updated (still submits). */}
-            <input className="input" name="mac" placeholder="0c:38:3e:11:22:33" defaultValue={editing?.mac ?? ""} readOnly={!!editing} required />
-          </div>
-          <div className="field">
-            <label className="label">Vendor</label>
-            <select className="select" name="vendor" defaultValue={editing?.vendor ?? "FANVIL"}>
-              <option value="FANVIL">Fanvil</option>
-              <option value="YEALINK">Yealink</option>
-              <option value="GRANDSTREAM">Grandstream</option>
-              <option value="POLY">Poly</option>
-              <option value="GENERIC">Generic</option>
-            </select>
-          </div>
-          <div className="field">
-            <label className="label">Model</label>
-            <input className="input" name="model" placeholder="X4U" defaultValue={editing?.model ?? ""} required />
-          </div>
-          <div className="field">
-            <label className="label">Assign extension</label>
-            <select className="select" name="extensionId" defaultValue={editing?.extensionId ?? ""}>
-              <option value="">— none —</option>
-              {exts.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.number} · {e.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field col-span-2">
-            <label className="label">Timezone (optional)</label>
-            <input className="input" name="timezone" placeholder="America/Chicago" defaultValue={editing?.timezone ?? ""} />
-          </div>
-          <div className="col-span-2 flex items-center gap-3">
-            <button className="btn" type="submit">{editing ? "Save changes" : "Add device"}</button>
-            {editing && <a className="btn-ghost" href="/provisioning">Cancel</a>}
-          </div>
-        </form>
+        {/* key remounts the form (resetting its client state) when switching between add/edit rows. */}
+        <DeviceForm
+          key={editing?.id ?? "new"}
+          editing={
+            editing
+              ? {
+                  // Only non-secret fields — never the encrypted token columns — cross to the client.
+                  id: editing.id,
+                  mac: editing.mac,
+                  vendor: editing.vendor,
+                  model: editing.model,
+                  extensionId: editing.extensionId,
+                  timezone: editing.timezone,
+                }
+              : null
+          }
+          extensions={exts.map((e) => ({ id: e.id, number: e.number, displayName: e.displayName }))}
+        />
       </div>
 
       <div className="card">

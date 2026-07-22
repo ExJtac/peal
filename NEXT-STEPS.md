@@ -3,7 +3,34 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
-## ▶ RESUME HERE — Phone fleet management + code/config hardening DONE (2026-07-21)
+## ▶ RESUME HERE — Docs + provisioning/BH dropdowns + example phone (2026-07-21)
+One session, 1 commit. **Green: `npm run build` + 186 tests**; re-seed + a live provisioning-render check
+verified (seeded Fanvil X4U on ext 1001 emits `Time Zone Name :America/Chicago`). Six asks shipped:
+- **Complete User Guide** — new `USER-GUIDE.md` (plain-language: the two logins/roles, screen-by-screen tour,
+  step-by-step tasks, the portal, glossary) + a new `README.md` GitHub landing page.
+- **Timezone dropdown** — new shared `src/lib/timezones.ts` (curated IANA zones + friendly GMT-offset labels;
+  `isKnownTimezone` guard preserves a previously-saved custom zone). Replaces the free-text timezone input on
+  **provisioning, settings, business-hours**. Zod stays `z.string()` (no enum) so old rows still edit-save;
+  renderer/`context.ts` untouched → the **Fanvil golden test stays green**.
+- **Cascading Model dropdown** — new `src/provisioning/models.ts` (`PHONE_MODELS` per vendor, cosmetic) + new
+  client component `src/features/provisioning/device-form.tsx`: Vendor→Model cascade + **"Other…"** free-text
+  fallback + the timezone select. `provisioning/page.tsx` now renders `<DeviceForm>` and passes **only
+  non-secret fields** (never the encrypted token columns) to the client. `saveDevice` schema unchanged.
+- **Business Hours in-hours destination** — the destination-**TYPE** selector already existed + is wired end
+  to end (verified); added the timezone dropdown. Destination-**ID** left as raw-cuid (future: friendly picker).
+- **Example phone** — `prisma/seed.ts` seeds a Fanvil X4U (MAC `0c383e112233`) on ext 1001 (idempotent,
+  `update:{}`); `/provisioning` shows a real device (URL + web creds + reboot controls) out of the box.
+- **Install instructions** — new `INSTALL.md`: Cloud server (public IP, systemd) + Local Debian VM
+  (self-contained + Lima quick-start) + a "publish to GitHub first" section (placeholder URL — no remote yet).
+
+CODEMAP.md updated in the same step (the 3 new src files + a Docs section).
+
+**Deferred / optional (noted, not built):** friendly destination-**ID** dropdown for Business Hours + one
+shared `DestinationPicker` across the 5 duplicated type-lists; POLY renderer; exact vendor-specific timezone
+codes on a real handset (Fanvil `Time Zone Name` is IANA passthrough, verify-on-handset). **GitHub push is
+pending the user's repo info** — `INSTALL.md` uses a `<your-org>/pbx.git` placeholder.
+
+## ▶ EARLIER — Phone fleet management + code/config hardening DONE (2026-07-21)
 Two tracks shipped across 9 commits (`d15a977`→`30427cd`). **Green: `npm run build` + 186 tests**, verified
 LIVE against the VM. **➡ Genuine remaining work is now the operator/infra steps at the bottom** (flip the
 reboot buttons live; live PSTN; deferred infra hardening) — the code+config work is complete.

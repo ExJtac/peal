@@ -88,7 +88,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
 | queues · conferences | `queues/actions.ts`, `queues/wallboard.tsx`, `conferences/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue`. **QUEUE wired into every destination picker** (inbound/business-hours/ivr/ring-group-failover/ai-agent handoff). `wallboard.tsx` (client) polls `/api/queues/live` |
-| provisioning | `provisioning/actions.ts`, `provisioning/reboot.ts`, `provisioning/device-controls.tsx`, `provisioning/web-access.tsx` | Device CRUD (+ generated **web-admin pw**, `regenerateWebPassword`); provisioning URL from `provisioning/secrets`; **reboot / force-provision** push (`reboot.ts` → `telephony/ami`, buttons in `device-controls.tsx`); **phone web-UI link + creds** (`web-access.tsx`) |
+| provisioning | `provisioning/actions.ts`, `provisioning/device-form.tsx`, `provisioning/reboot.ts`, `provisioning/device-controls.tsx`, `provisioning/web-access.tsx` | Device CRUD (+ generated **web-admin pw**, `regenerateWebPassword`); provisioning URL from `provisioning/secrets`; **`device-form.tsx`** (client) = Add/Edit form with a **cascading Vendor→Model dropdown** (`PHONE_MODELS`, "Other…" free-text) + **timezone dropdown** (`TIMEZONES`); **reboot / force-provision** push (`reboot.ts` → `telephony/ami`, buttons in `device-controls.tsx`); **phone web-UI link + creds** (`web-access.tsx`) |
 | guardrails · e911 · settings | `*/actions.ts` | singletons + E911 locations (reporting is read-only, no actions) |
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
 | business-hours · voicemail · ivr | `*/actions.ts` | time conditions · VM transcribe toggle · IVR flow/node/option CRUD |
@@ -136,6 +136,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `secrets.ts` · `sipPnp.ts` · `filename.ts` | per-MAC HMAC token + SIP-PnP parse/response helpers + **`macFromProvisionRequest`** (resolves each vendor's request filename — `<mac>.cfg` / `cfg<mac>.xml` — to the MAC; used by `/provision/[mac]`) |
 | `vendors/yealink.ts` · `vendors/grandstream.ts` | Yealink flat-cfg + Grandstream P-value XML renderers (SIP + transport/SRTP + web-admin + poll + fn-keys) — golden-tested; vendor keys flagged for handset verification |
 | `vendors/poly.ts` | `[later]` — same interface |
+| `models.ts` | curated per-vendor phone-model lists (`PHONE_MODELS`, `modelsForVendor`) backing the cascading Model dropdown. **Cosmetic** — renderers branch on vendor, not model; unlisted models still save via "Other…" |
 
 ## Async AI (`src/ai/`) — worker-safe
 | File | Responsibility |
@@ -155,12 +156,21 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `db.ts` · `env.ts` · `queue.ts` · `heartbeat.ts` | Prisma+pg singleton · typed env · AiJob queue · heartbeat wrapper |
 | `auth.ts` · `guards.ts` · `password.ts` · `crypto-vault.ts` | JWT session · role guards · bcrypt · AES-256-GCM vault (**multi-key: encrypt=primary `CRED_SECRET`, decrypt tries `CRED_SECRET_OLD` fallbacks; `tryDecryptSecret` + `rotate:cred-secret` for safe rotation**) |
 | `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` · `health.ts` · `loginThrottle.ts` · `net.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize · **control-plane health verdict** (pure; drives the health-alert timer) · **XFF→safe host** (phone web-link sanitizer) |
+| `timezones.ts` | curated IANA `TIMEZONES` list (+ `isKnownTimezone`) backing **every** timezone dropdown — provisioning (`device-form.tsx`), `settings/page.tsx`, `business-hours/page.tsx`. IANA values (correct for `businessHours` Intl calc + Fanvil passthrough) |
 | `src/components/sidebar.tsx` | admin nav (client, active link) |
+
+## Docs (repo root)
+| File | Audience / purpose |
+|---|---|
+| `README.md` | GitHub landing page — pitch, highlights, doc index, dev quick-start |
+| `USER-GUIDE.md` | **Plain-language** guide for admins + staff: the two logins/roles, a screen-by-screen tour, step-by-step common tasks, the portal, and a glossary |
+| `INSTALL.md` | Install from a fresh clone — **Cloud server** (public IP, prod, systemd) + **Local Debian VM** (self-contained + Lima quick-start), with a "publish to GitHub first" step; cites HARDENING/TRUNK-SETUP/BUILD-PLAN |
+| `HARDENING.md` · `TRUNK-SETUP.md` · `BUILD-PLAN.md` | prod security runbook · PSTN trunk go-live · architecture/design |
 
 ## Data + scripts + tests
 | File | Responsibility |
 |---|---|
-| `prisma/schema.prisma` · `prisma/seed.ts` | 28 models (public; +`AiAgent`, +`AI_AGENT` dest, +`AiOutcome`) · seed |
+| `prisma/schema.prisma` · `prisma/seed.ts` | 28 models (public; +`AiAgent`, +`AI_AGENT` dest, +`AiOutcome`) · seed (admin/company/2 extensions/**example Fanvil X4U phone on ext 1001**/manager+user logins/disabled Telnyx trunk) |
 | `scripts/apply-asterisk-sql.ts` | applies `asterisk/sql/*.sql` (Asterisk-owned schema) |
 | `scripts/originate-test.ts` | Phase-0 spine check (server calls a phone → plays demo) |
 | `scripts/smoke-live.ts` | opt-in live ARI + STT/LLM check |

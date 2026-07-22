@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 import { saveSettings } from "@/features/settings/actions";
+import { TIMEZONES, isKnownTimezone } from "@/lib/timezones";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,15 @@ export default async function SettingsPage() {
           </div>
           <div className="field">
             <label className="label">Timezone</label>
-            <input className="input" name="timezone" defaultValue={settings?.timezone ?? "America/Chicago"} required />
+            <select className="select" name="timezone" defaultValue={settings?.timezone ?? "America/Chicago"} required>
+              {/* Preserve a previously-saved custom zone that isn't in the curated list. */}
+              {settings?.timezone && !isKnownTimezone(settings.timezone) && (
+                <option value={settings.timezone}>{settings.timezone}</option>
+              )}
+              {TIMEZONES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
           </div>
           <div className="field">
             <label className="label">Default caller ID</label>

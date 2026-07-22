@@ -1,7 +1,10 @@
 import "dotenv/config";
+import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { encryptSecret } from "@/lib/crypto-vault";
+import { normalizeMac } from "@/lib/ids";
+import { provisioningToken } from "@/provisioning/secrets";
 
 // Seeds a single-tenant PBX: an admin login, company + guardrail + status singletons, two demo
 // extensions with voicemail boxes, and a disabled Telnyx trunk + national outbound route
@@ -51,6 +54,25 @@ async function main() {
       },
     });
   }
+
+  // An example provisioned desk phone (Fanvil X4U on Front Desk 1001) so /provisioning shows a real,
+  // clickable device out of the box (provisioning URL + web-admin creds + reboot controls). Idempotent:
+  // `update: {}` keeps the existing token/web password on re-seed. Mirrors saveDevice()'s encrypted columns.
+  const frontDesk = await db.extension.findUnique({ where: { number: "1001" } });
+  const demoMac = normalizeMac("0c:38:3e:11:22:33");
+  await db.device.upsert({
+    where: { mac: demoMac },
+    update: {},
+    create: {
+      mac: demoMac,
+      vendor: "FANVIL",
+      model: "X4U",
+      timezone: "America/Chicago",
+      extensionId: frontDesk?.id ?? null,
+      provisioningTokenEnc: encryptSecret(provisioningToken(demoMac)),
+      webAdminPasswordEnc: encryptSecret(randomBytes(9).toString("base64url")),
+    },
+  });
 
   // A WebRTC (browser softphone) extension + the portal user bound to it, plus a manager login.
   const webExt = await db.extension.upsert({
@@ -112,6 +134,7 @@ async function main() {
   console.log("  admin@pbx.local   (ADMIN)");
   console.log("  manager@pbx.local (MANAGER)");
   console.log("  user@pbx.local    (USER, ext 2001 WebRTC → portal)");
+  console.log("Example phone: Fanvil X4U (MAC 0c383e112233) on ext 1001 — see /provisioning.");
   if (usingDefaultPassword) {
     console.warn(
       "\n\x1b[1;33m⚠  Seeded with the shared demo password 'password123'.\x1b[0m\n" +
