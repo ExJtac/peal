@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/guards";
 import { saveDevice, deleteDevice } from "@/features/provisioning/actions";
+import { DeviceControls, RebootAll } from "@/features/provisioning/device-controls";
 import { provisioningToken } from "@/provisioning/secrets";
 import { appUrl } from "@/lib/env";
 
@@ -73,6 +74,10 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
       </div>
 
       <div className="card">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-medium">Phones</h2>
+          <RebootAll />
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -81,6 +86,7 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
               <th>Extension</th>
               <th>Provisioning URL</th>
               <th>Last seen</th>
+              <th>Controls</th>
               <th></th>
             </tr>
           </thead>
@@ -98,6 +104,9 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
                     <code className="text-xs break-all">{url}</code>
                   </td>
                   <td className="muted text-xs">{d.lastProvisionedAt ? d.lastProvisionedAt.toLocaleString() : "never"}</td>
+                  <td>
+                    <DeviceControls deviceId={d.id} />
+                  </td>
                   <td className="text-right whitespace-nowrap">
                     <a className="btn-ghost mr-2" href={`/provisioning?edit=${d.id}`}>Edit</a>
                     <form action={deleteDevice} className="inline">
@@ -110,7 +119,7 @@ export default async function ProvisioningPage({ searchParams }: { searchParams:
             })}
             {devices.length === 0 && (
               <tr>
-                <td colSpan={6} className="muted">No devices yet. Add your Fanvil phones by MAC.</td>
+                <td colSpan={7} className="muted">No devices yet. Add your Fanvil phones by MAC.</td>
               </tr>
             )}
           </tbody>

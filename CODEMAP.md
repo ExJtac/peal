@@ -34,7 +34,8 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `asterisk/lima/pbx.yaml` | Lima Debian 13 VM (vzNAT dev; bridged office block commented); provision hook runs the build script |
 | `asterisk/build/build-asterisk.sh` | Pinned Asterisk 22 (`ASTERISK_VERSION=22.10.0`) source build + menuselect + user/dirs + systemd + copies configs |
 | `asterisk/build/install-control-plane.sh` + `asterisk/build/systemd/*` | **PROD supervision** (dev stays manual on the Mac): systemd units for the 3 Node daemons + Next app (`pbx-ari`/`worker`/`pnp`/`web`, `Restart=always`, `KillMode=control-group` reaps tsx orphans) + `pbx-backup.timer` (daily `pg_dump`) + `pbx-health.timer` (health-alert email). Installer renders `@PLACEHOLDERS@` + enables |
-| `asterisk/etc/*.conf` | asterisk/modules/http/ari/res_odbc/odbc(inst)/extconfig/sorcery/pjsip/extensions/cdr/cel/logger/rtp/musiconhold |
+| `asterisk/etc/*.conf` | asterisk/modules/http/ari/**manager**/res_odbc/odbc(inst)/extconfig/sorcery/pjsip/**pjsip_notify**/extensions/cdr/cel/logger/rtp/musiconhold |
+| `asterisk/etc/manager.conf` + `pjsip_notify.conf` | AMI enabled (ACL-locked `[pbx-ctl]`) + `[resync]`/`[reboot]` check-sync payloads — powers phone reboot / force-provision (`src/telephony/ami.ts`) |
 | `asterisk/etc/extensions.conf` | Dialplan: `Stasis(pbx-app)` handoff + **native-first 911** + graceful fallback contexts |
 | `asterisk/sql/001_ps_tables.sql` | schema `asterisk` + PJSIP realtime tables (ps_endpoints/auths/aors/contacts/endpoint_id_ips/registrations/domain_aliases/globals) |
 | `asterisk/sql/002_cdr_cel.sql` | `asterisk.cdr` + `asterisk.cel` |
@@ -87,7 +88,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | dids · inbound-routes · outbound-routes | `*/actions.ts` | number inventory + routing (read by `telephony/destinations`) |
 | ring-groups | `ring-groups/actions.ts` | group + member rebuild |
 | queues · conferences | `queues/actions.ts`, `queues/wallboard.tsx`, `conferences/actions.ts` | queue CRUD + member rebuild (number:penalty order); drives `telephony/queue`. **QUEUE wired into every destination picker** (inbound/business-hours/ivr/ring-group-failover/ai-agent handoff). `wallboard.tsx` (client) polls `/api/queues/live` |
-| provisioning | `provisioning/actions.ts` | Device CRUD; provisioning URL from `provisioning/secrets` |
+| provisioning | `provisioning/actions.ts`, `provisioning/reboot.ts`, `provisioning/device-controls.tsx` | Device CRUD; provisioning URL from `provisioning/secrets`; **reboot / force-provision** push (`reboot.ts` → `telephony/ami`, client buttons in `device-controls.tsx`) |
 | guardrails · e911 · settings | `*/actions.ts` | singletons + E911 locations (reporting is read-only, no actions) |
 | users | `users/actions.ts` | ADMIN-only: create/role/link-extension/reset-password |
 | business-hours · voicemail · ivr | `*/actions.ts` | time conditions · VM transcribe toggle · IVR flow/node/option CRUD |
@@ -98,6 +99,7 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | File | Responsibility |
 |---|---|
 | `ariClient.ts` | Thin fetch-based ARI REST wrapper (answer/bridge/originate/play/record/continue/vars/**moh start+stop**/**hold·unhold·redirect·snoop·deviceState**) |
+| `ami.ts` | Minimal AMI client (`node:net`) — `pjsipNotify(endpoint, resync\|reboot)` sends a check-sync NOTIFY (phone reboot / force-provision) the ARI API can't; pure `buildAction`/`parseAmiBlocks` helpers |
 | `connection.ts` | ARI events WS lifecycle + backoff reconnect + heartbeat (inbound WS; outbound-WS upgrade noted) |
 | `stateRecovery.ts` | Re-adopt in-flight channels on reconnect (via CALLREC_ID channel var) |
 | `dispatcher.ts` | ARI event router (StasisStart / DTMF / ChannelDestroyed) |
@@ -167,4 +169,4 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
-| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** (137 tests, offline) |
+| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** · **ami (AMI framing/parse + socket round-trip)** (offline) |

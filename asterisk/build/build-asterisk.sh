@@ -98,6 +98,8 @@ MODULES=(
   # --- PJSIP (the only channel driver we use) ---
   chan_pjsip res_pjsip res_pjsip_outbound_registration
   res_pjsip_endpoint_identifier_ip res_pjsip_registrar res_pjsip_mwi res_pjsip_pubsub
+  # res_pjsip_notify backs pjsip_notify.conf + AMI PJSIPNotify (phone reboot / force-provision).
+  res_pjsip_notify
   # --- Realtime / ODBC (ps_* live in Postgres schema "asterisk") ---
   res_odbc res_config_odbc res_sorcery_realtime
   # --- CDR / CEL to Postgres ---

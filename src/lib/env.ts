@@ -8,6 +8,14 @@ export const ARI_PASSWORD = process.env.ARI_PASSWORD ?? "";
 export const ARI_WS_PORT = Number(process.env.ARI_WS_PORT ?? "8090");
 export const ASTERISK_DB_SCHEMA = process.env.ASTERISK_DB_SCHEMA ?? "asterisk";
 
+// --- Asterisk AMI (only for the reboot / force-provision push via Action: PJSIPNotify) ---
+// AMI_PASSWORD must equal the [pbx-ctl] secret in the VM's manager.conf. Dev reaches AMI over
+// the Lima port-forward (Mac 127.0.0.1:5038 -> guest); prod co-located = 127.0.0.1 too.
+export const AMI_HOST = process.env.AMI_HOST ?? "127.0.0.1";
+export const AMI_PORT = Number(process.env.AMI_PORT ?? "5038");
+export const AMI_USER = process.env.AMI_USER ?? "pbx-ctl";
+export const AMI_PASSWORD = process.env.AMI_PASSWORD ?? "";
+
 // --- SIP / provisioning ---
 export const SIP_DOMAIN = process.env.SIP_DOMAIN ?? "pbx.local";
 export const SIP_SERVER_HOST = process.env.SIP_SERVER_HOST ?? "";

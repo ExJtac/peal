@@ -86,6 +86,8 @@ vmType: "vz"
 portForwards:
   - guestPort: 8088          # ARI / mini-HTTP server (http.conf)
     hostIP: "127.0.0.1"
+  - guestPort: 5038          # AMI (manager.conf) — control-plane reboot / force-provision push
+    hostIP: "127.0.0.1"
   # - guestPort: 5060        # SIP — prefer bridged networking for real phones instead.
   #   proto: udp
 
@@ -123,6 +125,7 @@ message: |
     sudo sed -i "s/MAC_HOST_IP/<mac-ip-from-vm>/g" /etc/odbc.ini \
         /etc/asterisk/cdr_pgsql.conf /etc/asterisk/cel_pgsql.conf
     sudo sed -i "s/CHANGEME_ARI_PASSWORD/<your-ari-password>/" /etc/asterisk/ari.conf
+    sudo sed -i "s/CHANGEME_AMI_PASSWORD/<your-ami-password>/" /etc/asterisk/manager.conf
     sudo systemctl start asterisk
 
   VERIFY:
