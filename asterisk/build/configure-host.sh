@@ -48,9 +48,14 @@ log "Binding AMI to loopback"
 # ---- 4. Network detection -> .env host values ----
 log "Writing host/network values into ${ENV_FILE}"
 [ -f "${ENV_FILE}" ] || cp "${REPO_DIR}/.env.example" "${ENV_FILE}"
-LAN_IP="$(ip -4 -o route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || true)"
-[ -n "${LAN_IP}" ] || LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-[ -n "${LAN_IP}" ] || LAN_IP="127.0.0.1"
+# PBX_LAN_IP wins (set it when the box is multi-homed — e.g. a bridged VM with a VirtualBox NAT
+# adapter — so phones get the reachable LAN address, not the NAT one). Else auto-detect.
+LAN_IP="${PBX_LAN_IP:-}"
+if [ -z "${LAN_IP}" ]; then
+  LAN_IP="$(ip -4 -o route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || true)"
+  [ -n "${LAN_IP}" ] || LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  [ -n "${LAN_IP}" ] || LAN_IP="127.0.0.1"
+fi
 
 set_env() { # KEY VALUE — upsert KEY="VALUE" into ENV_FILE (| delimiter: our values have no |)
   local key="$1" val="$2" line

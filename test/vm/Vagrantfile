@@ -3,57 +3,72 @@
 # Cross-platform (Windows / macOS / Linux) via VirtualBox. Full guide: README.md next to this file.
 #
 #   cd test/vm
-#   vagrant up            # builds Debian 13 + runs install.sh (~20-40 min; compiles Asterisk)
-#   #   → then open http://localhost:3001  (admin@pbx.local / the password printed at the end)
-#   vagrant ssh           # poke around inside the guest
-#   vagrant destroy -f    # throw the VM away
+#   vagrant up                       # NAT: console at http://localhost:3001 (testing only)
+#   PEAL_NET=bridged vagrant up      # BRIDGED: VM gets a real LAN IP so a physical phone can register
+#   vagrant ssh                      # poke around inside the guest
+#   vagrant destroy -f               # throw the VM away
 #
-# By DEFAULT it installs the PUBLISHED installer straight from GitHub (needs the repo pushed
-# public). To test your LOCAL working copy instead (no push needed):
-#   PEAL_SOURCE=local vagrant up            # (needs an rsync on PATH; Git-for-Windows ships one)
+# Source of the installer:
+#   default            → the PUBLISHED installer from GitHub (repo must be public + pushed)
+#   PEAL_SOURCE=local  → your LOCAL working copy via rsync (no push needed; needs rsync on PATH)
 
 REPO_OWNER  = ENV.fetch("PEAL_OWNER",  "ExJtac")
 REPO_NAME   = ENV.fetch("PEAL_NAME",   "peal")
 REPO_BRANCH = ENV.fetch("PEAL_BRANCH", "main")
 SOURCE      = ENV.fetch("PEAL_SOURCE", "github")   # "github" (default) | "local"
+NET         = ENV.fetch("PEAL_NET",    "nat")      # "nat" (default) | "bridged" (real phones)
+
+RAW = "https://raw.githubusercontent.com/#{REPO_OWNER}/#{REPO_NAME}/#{REPO_BRANCH}/install.sh"
+GIT = "https://github.com/#{REPO_OWNER}/#{REPO_NAME}.git"
 
 Vagrant.configure("2") do |config|
   config.vm.box      = "debian/trixie64"   # official Debian 13 (trixie) box
   config.vm.hostname = "peal-test"
 
-  # Reach the web console from your host browser at http://localhost:3001
+  # Always reach the console from the host browser at http://localhost:3001 (via the NAT adapter).
   config.vm.network "forwarded_port", guest: 3001, host: 3001, host_ip: "127.0.0.1", auto_correct: true
+
+  # Bridged: add a second adapter with a real IP on your LAN so a physical SIP phone can register.
+  # Vagrant asks which host NIC to bridge if there's more than one.
+  config.vm.network "public_network" if NET == "bridged"
 
   config.vm.provider "virtualbox" do |vb|
     vb.name   = "peal-test"
     vb.cpus   = 4
     vb.memory = 5120   # 5 GiB — Asterisk compiles from source
   end
-  # Hyper-V (Windows Pro): `vagrant up --provider hyperv` also works; VirtualBox is the default
-  # because it runs on every Windows edition (incl. Home).
+  # Hyper-V (Windows Pro): `vagrant up --provider hyperv` also works; VirtualBox is the default.
 
+  # Local source (test your working tree, no push). rsync avoids VirtualBox Guest Additions; on
+  # Windows it needs an rsync on PATH (Git-for-Windows / cygwin ships one).
   if SOURCE == "local"
-    # Install from your working tree — no push required. rsync avoids needing VirtualBox Guest
-    # Additions; on Windows it needs an rsync on PATH (Git-for-Windows / cygwin provides one).
     config.vm.synced_folder "../..", "/repo", type: "rsync",
       rsync__exclude: ["node_modules/", ".next/", ".git/"]
-    config.vm.provision "shell", inline: <<~'SHELL'
-      set -euo pipefail
-      echo "==> Installing peal from LOCAL source (/repo -> /opt/pbx)"
-      mkdir -p /opt/pbx
-      tar -C /repo --exclude=node_modules --exclude=.next --exclude=.git -cf - . | tar -C /opt/pbx -xf -
-      find /opt/pbx -maxdepth 3 -name '*.sh' -exec sed -i 's/\r$//' {} + 2>/dev/null || true
-      chmod +x /opt/pbx/install.sh /opt/pbx/asterisk/build/*.sh
-      PBX_DIR=/opt/pbx bash /opt/pbx/install.sh
-    SHELL
-  else
-    # DEFAULT: install the published product straight from GitHub (repo must be public + pushed).
-    raw = "https://raw.githubusercontent.com/#{REPO_OWNER}/#{REPO_NAME}/#{REPO_BRANCH}/install.sh"
-    git = "https://github.com/#{REPO_OWNER}/#{REPO_NAME}.git"
-    config.vm.provision "shell", inline: <<~SHELL
-      set -euo pipefail
-      echo "==> Installing peal from #{git} (#{REPO_BRANCH})"
-      curl -fsSL "#{raw}" | REPO_URL="#{git}" REPO_BRANCH="#{REPO_BRANCH}" bash
-    SHELL
   end
+
+  # One non-interpolated provisioner; all parameters arrive via env so bash escapes stay literal.
+  config.vm.provision "shell",
+    env: { "PEAL_NET" => NET, "PEAL_SOURCE" => SOURCE, "PEAL_RAW" => RAW, "PEAL_GIT" => GIT, "PEAL_BRANCH" => REPO_BRANCH },
+    inline: <<~'SHELL'
+      set -euo pipefail
+      # Bridged VMs are multi-homed (VirtualBox NAT + the bridged LAN NIC). Pick the LAN address a
+      # phone can actually reach — the global-scope IPv4 that is NOT VirtualBox's 10.0.2.x NAT — and
+      # hand it to install.sh as PBX_LAN_IP so SIP + the firewall use it instead of the NAT IP.
+      if [ "${PEAL_NET}" = "bridged" ]; then
+        export PBX_LAN_IP="$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -vE '^10\.0\.2\.' | head -1)"
+        echo "==> bridged mode: phones will register to LAN IP ${PBX_LAN_IP:-<none detected>}"
+      fi
+
+      if [ "${PEAL_SOURCE}" = "local" ]; then
+        echo "==> Installing peal from LOCAL source (/repo -> /opt/pbx)"
+        mkdir -p /opt/pbx
+        tar -C /repo --exclude=node_modules --exclude=.next --exclude=.git -cf - . | tar -C /opt/pbx -xf -
+        find /opt/pbx -maxdepth 3 -name '*.sh' -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+        chmod +x /opt/pbx/install.sh /opt/pbx/asterisk/build/*.sh
+        PBX_DIR=/opt/pbx bash /opt/pbx/install.sh
+      else
+        echo "==> Installing peal from ${PEAL_GIT} (${PEAL_BRANCH})"
+        curl -fsSL "${PEAL_RAW}" | REPO_URL="${PEAL_GIT}" REPO_BRANCH="${PEAL_BRANCH}" bash
+      fi
+    SHELL
 end

@@ -35,6 +35,35 @@ In your browser on the **same PC**:
 
 That's a full PBX admin console, produced from a bare OS by one command. 🎉
 
+## Plug in a physical phone (bridged networking)
+
+The default `vagrant up` uses NAT — fine for the browser console, but a **physical desk phone can't
+register through NAT**. To connect a real phone, bring the VM up in **bridged** mode so it gets a real
+IP on your LAN:
+
+```powershell
+$env:PEAL_NET="bridged"; vagrant up      # PowerShell
+#   PEAL_NET=bridged vagrant up           # macOS / Linux / Git-Bash
+```
+
+Vagrant asks **which network adapter to bridge** — pick the one your phone is on (your wired Ethernet or
+Wi-Fi). The installer detects the VM's LAN IP and opens the firewall to your LAN automatically; the
+final banner shows it (e.g. `Console : http://192.168.1.50:3001`). Note that address — call it `VM_IP`.
+
+**Register the phone (Fanvil X5U shown — any Fanvil is the same):**
+1. In the console → **Extensions** → add one (e.g. `1001`) and set a **SIP password** (or note the
+   seeded one). This writes the realtime endpoint the phone registers against.
+2. Find the phone's IP (its screen → *Status*), open `http://<phone-ip>/` in a browser, log in
+   (default `admin` / `admin`).
+3. **Line → SIP** (Account 1): **Server Address** = `VM_IP`, **Server Port** = `5060`,
+   **Username** / **Register Name** = `1001`, **Password** = the SIP password, **Enable** = on. Apply.
+4. The phone shows registered; the console's **Extensions** / dashboard shows it online. Dial another
+   extension to test.
+
+*(Prefer zero-touch? peal auto-provisions Fanvil — add the phone's MAC under **Provisioning** and point
+its Auto-Provision URL at `http://VM_IP:3001/provision/<mac>`. Manual SIP above is the quickest first
+proof, though.)*
+
 ## Managing the VM
 
 ```powershell

@@ -13,7 +13,8 @@
 # The same one-liner works as cloud-init user-data (in a `runcmd:` block).
 #
 # Env knobs: REPO_URL (clone source), REPO_BRANCH (default main), PBX_DIR (default /opt/pbx),
-#            PBX_USER (default pbx).
+#            PBX_USER (default pbx), PBX_LAN_IP (force the LAN address phones reach the box on —
+#            set it on a multi-homed/bridged VM so SIP + the firewall use the reachable IP, not NAT).
 #
 set -euo pipefail
 

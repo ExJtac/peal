@@ -33,7 +33,8 @@ echo "  jail active: 5 fails / 10 min → 1 h ban (/var/log/asterisk/security)"
 
 # ---- derive the LAN /24 if not provided ----
 if [ -z "${LAN_CIDR}" ]; then
-  LAN_IP="$(ip -4 -o route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || true)"
+  # PBX_LAN_IP wins (multi-homed / bridged VM), else auto-detect the default-route source IP.
+  LAN_IP="${PBX_LAN_IP:-$(ip -4 -o route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || true)}"
   if [ -n "${LAN_IP}" ]; then
     LAN_CIDR="${LAN_IP%.*}.0/24"
   else
