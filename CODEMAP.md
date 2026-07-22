@@ -34,6 +34,8 @@ same step. Consult this FIRST, then open only the mapped file(s).
 | `asterisk/lima/pbx.yaml` | Lima Debian 13 VM (vzNAT dev; bridged office block commented); provision hook runs the build script |
 | `asterisk/build/build-asterisk.sh` | Pinned Asterisk 22 (`ASTERISK_VERSION=22.10.0`) source build + menuselect + user/dirs + systemd + copies configs |
 | `asterisk/build/install-control-plane.sh` + `asterisk/build/systemd/*` | **PROD supervision** (dev stays manual on the Mac): systemd units for the 3 Node daemons + Next app (`pbx-ari`/`worker`/`pnp`/`web`, `Restart=always`, `KillMode=control-group` reaps tsx orphans) + `pbx-backup.timer` (daily `pg_dump`) + `pbx-health.timer` (health-alert email). Installer renders `@PLACEHOLDERS@` + enables |
+| `install.sh` (repo root) | **One-command installer** (Path 0 in `INSTALL.md`): fresh Debian 13 → the whole stack, hardened. curl bootstrap (clone → re-exec) + 11 idempotent phases; orchestrates the sub-scripts below + `build-asterisk.sh` + `install-control-plane.sh` + `secrets:write` + `npm run setup`. Prints console URL + one-time admin pw |
+| `asterisk/build/{setup-node,setup-postgres,configure-host,harden-host}.sh` | Installer glue: NodeSource Node ≥20 · Postgres + `pbx` role/db (loopback trust) · co-locate shipped configs on `127.0.0.1` + arch-correct ODBC driver (`dpkg -L`) + `james`→`pbx` + `.env` host/network values · **edge lockdown** = nftables LAN-scoped firewall (SIP/RTP/console to `$LAN_CIDR` + trunk set; 5038/5432 loopback) + fail2ban jail. **No separate SBC** — Asterisk-as-B2BUA is the SBC for ≤25 phones |
 | `asterisk/etc/*.conf` | asterisk/modules/http/ari/**manager**/res_odbc/odbc(inst)/extconfig/sorcery/pjsip/**pjsip_notify**/extensions/cdr/cel/logger/rtp/musiconhold |
 | `asterisk/etc/manager.conf` + `pjsip_notify.conf` | AMI enabled (ACL-locked `[pbx-ctl]`) + `[resync]`/`[reboot]` check-sync payloads — powers phone reboot / force-provision (`src/telephony/ami.ts`) |
 | `asterisk/etc/extensions.conf` | Dialplan: `Stasis(pbx-app)` handoff + **native-first 911** + graceful fallback contexts |
@@ -164,7 +166,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 |---|---|
 | `README.md` | GitHub landing page — pitch, highlights, doc index, dev quick-start |
 | `USER-GUIDE.md` | **Plain-language** guide for admins + staff: the two logins/roles, a screen-by-screen tour, step-by-step common tasks, the portal, and a glossary |
-| `INSTALL.md` | Install from a fresh clone — **Cloud server** (public IP, prod, systemd) + **Local Debian VM** (self-contained + Lima quick-start), with a "publish to GitHub first" step; cites HARDENING/TRUNK-SETUP/BUILD-PLAN |
+| `INSTALL.md` | Install from a fresh clone — **Path 0 one-command install** (`curl … | sudo bash` / cloud-init) + **Cloud server** (public IP, prod, systemd) + **Local Debian VM** (self-contained + Lima quick-start), with a "publish to GitHub first" step; cites HARDENING/TRUNK-SETUP/BUILD-PLAN |
 | `HARDENING.md` · `TRUNK-SETUP.md` · `BUILD-PLAN.md` | prod security runbook · PSTN trunk go-live · architecture/design |
 
 ## Data + scripts + tests
@@ -179,8 +181,8 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/queue-smoke.ts` / `conference-smoke.ts` / `parking-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
 | `scripts/ami-smoke.ts` | **opt-in live** AMI check (`npm run smoke:ami -- <ext> resync\|reboot`): login + PJSIPNotify to a phone endpoint |
 | `scripts/rotate-cred-secret.ts` | re-encrypt at-rest secrets to a new `CRED_SECRET` (`npm run rotate:cred-secret [-- --dry-run]`) — multi-key, idempotent, reports per-column counts |
-| `scripts/gen-secrets.ts` · `scripts/check-secrets.ts` | `npm run gen:secrets` prints strong secrets (never writes `.env`); `npm run check:secrets` audits secrets (FAILs on unset/dev-default/short, warns on ari.conf/seed sync) |
+| `scripts/gen-secrets.ts` · `scripts/check-secrets.ts` · `scripts/write-secrets.ts` · `scripts/lib/secrets.ts` | `gen:secrets` prints strong secrets (never writes); `check:secrets` audits (FAILs on unset/dev-default/short); **`secrets:write` generate-once + fan-out** — fills `.env` and mirrors `ARI_PASSWORD`/`AMI_PASSWORD` into `ari.conf`/`manager.conf` so they match (idempotent; preserves real values). `lib/secrets.ts` = shared keys/`genSecret`/placeholder helpers (used by all three) |
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
-| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning (+ **web-auth/SRTP/poll**) · **net (XFF sanitize)** · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** · **ami (AMI framing/parse + socket round-trip)** (offline) |
+| `test/*.test.ts` | phone · guardrail · businessHours · e911 · ids · provisioning (+ **web-auth/SRTP/poll**) · **net (XFF sanitize)** · **psSchema (trunk/ext ps_* rows)** · rtp · vad · rtpPacer · realtimeProviders · agentSession · health · **queue (ACD state machine)** · **ami (AMI framing/parse + socket round-trip)** · **write-secrets (fan-out + idempotency + preserve)** (offline) |

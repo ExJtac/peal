@@ -1,15 +1,9 @@
 import "dotenv/config";
 import { existsSync, readFileSync } from "node:fs";
+import { DEV_DEFAULTS } from "./lib/secrets";
 
 // Pre-go-live secret audit. FAILs (exit 1) on unset / dev-default / too-short app secrets; WARNs on
 // deployment-sync reminders. Expected to fail on a dev box that still uses the dev-default secrets.
-const DEV_DEFAULTS = new Set([
-  "dev-only-insecure-secret-change-me", // AUTH_SECRET (src/lib/auth.ts)
-  "dev-only-insecure-cred-secret-change-me", // CRED_SECRET (src/lib/crypto-vault.ts)
-  "dev-only-provision-secret-change-me", // PROVISION_SECRET (src/lib/env.ts)
-  "test-only-cred-secret", // test/setup.ts
-  "test-only-provision-secret", // test/setup.ts
-]);
 
 let failed = 0;
 const fail = (m: string) => {

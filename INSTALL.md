@@ -1,9 +1,12 @@
 # Install Guide
 
-How to stand up this PBX from a fresh clone. Two supported targets:
+How to stand up this PBX from a fresh clone. Three ways in:
 
-- **[Path A — Cloud server](#path-a--cloud-server-production)** — a Debian box with a **public IP**.
-  Best for production and real phone-company (PSTN) service; both credential and IP-auth trunks work.
+- **[Path 0 — One-command install](#path-0--one-command-install-recommended)** *(recommended)* — one
+  command on a fresh **Debian 13** host stands up the whole stack, hardened. Works for a VM or a cloud
+  server; it just automates Path A.
+- **[Path A — Cloud server](#path-a--cloud-server-production)** — the same steps by hand on a Debian box
+  with a **public IP** (or on Debian 12 / Ubuntu). Best when you want to see/customize each step.
 - **[Path B — Local Debian VM](#path-b--local-debian-vm-testing)** — a Debian virtual machine on your
   own computer for testing/evaluation. It's behind NAT, which limits outside calling (see the caveats).
 
@@ -32,6 +35,48 @@ Both run the **same software**; only the networking and hardening differ. Before
 
 Asterisk is the thin call engine; every call is handed to our Node code, which does all the routing,
 IVR, queues, and AI. Full design is in `BUILD-PLAN.md`; navigation in `CODEMAP.md`.
+
+---
+
+## Path 0 — One-command install (recommended)
+
+On a **fresh Debian 13** host (VM, cloud instance, or bare metal), one command installs everything —
+Node.js, PostgreSQL, Asterisk 22, the control plane, the database, all secrets, and a hardened SIP edge
+(nftables firewall + fail2ban). There is **no separate SBC**: Asterisk itself is the session border for a
+≤25-phone single-tenant box (it terminates every call as a B2BUA).
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ExJtac/peal/main/install.sh \
+  | sudo REPO_URL=https://github.com/ExJtac/peal.git bash
+```
+
+The identical one-liner also works as **cloud-init** user-data:
+
+```yaml
+#cloud-config
+runcmd:
+  - [ bash, -c, "curl -fsSL https://raw.githubusercontent.com/ExJtac/peal/main/install.sh | REPO_URL=https://github.com/ExJtac/peal.git bash" ]
+```
+
+**What it does** (every phase is idempotent — safe to re-run): installs Node ≥20 + PostgreSQL and creates
+the `pbx` role/database; builds Asterisk 22; co-locates the shipped configs on `127.0.0.1`, selects the
+right PostgreSQL ODBC driver for the CPU arch, and detects the LAN IP; **generates all secrets once and
+fans `ARI_PASSWORD`/`AMI_PASSWORD` into `ari.conf`/`manager.conf` so they match** (the classic manual
+footgun); runs `npm run setup` (migrate + seed + Asterisk SQL); installs the systemd services; and applies
+the nftables firewall + fail2ban jail. It finishes by printing the console URL and the one-time admin
+password.
+
+**When it's done:** browse **http://&lt;host&gt;:3001**, log in as `admin@pbx.local` with the password it
+printed, and **change it immediately**. To go live with a phone line, follow `TRUNK-SETUP.md` and open the
+trunk's signaling IPs in the firewall:
+
+```bash
+nft add element inet pbx trunk_ips { <TRUNK_IP> }
+```
+
+> **Env knobs:** `PBX_DIR` (default `/opt/pbx`), `PBX_USER` (default `pbx`), `REPO_BRANCH` (default `main`),
+> `REPO_URL`. Prefer to run each step yourself, or install on Debian 12 / Ubuntu? Use **Path A** below —
+> Path 0 is just that sequence, automated, plus secret fan-out and the firewall.
 
 ### Processes & ports (for firewall planning)
 

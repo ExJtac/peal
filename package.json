@@ -34,7 +34,8 @@
     "smoke:ami": "tsx scripts/ami-smoke.ts",
     "rotate:cred-secret": "tsx scripts/rotate-cred-secret.ts",
     "gen:secrets": "tsx scripts/gen-secrets.ts",
-    "check:secrets": "tsx scripts/check-secrets.ts"
+    "check:secrets": "tsx scripts/check-secrets.ts",
+    "secrets:write": "tsx scripts/write-secrets.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

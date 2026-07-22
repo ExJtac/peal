@@ -7,6 +7,14 @@ independent and reversible.
 
 Most of the mechanics already exist in the repo — this is the checklist for turning them on.
 
+> **Used the one-command installer ([INSTALL.md → Path 0](INSTALL.md#path-0--one-command-install-recommended))? Most of this is already done for you:**
+> control-plane supervision (§1), nightly backups (§2) + the health timer (§3), **ARI/AMI password
+> generation + sync into `ari.conf`/`manager.conf` (§4)**, the **fail2ban jail + a LAN-scoped nftables
+> firewall with loopback-only AMI/Postgres (§8)** are all applied automatically. What still needs you:
+> verify a restore (§2), add an **external** uptime check (§3), rotate the seeded admin login (§4),
+> enable TLS/SRTP if you want it (§9–10), and do the per-deployment E911 + trunk go-live (§7,
+> `TRUNK-SETUP.md` — including opening the trunk IPs: `nft add element inet pbx trunk_ips { <IP> }`).
+
 ---
 
 ## 1. Supervise the control plane (P0 — do first)
@@ -37,7 +45,9 @@ file, delivered via the SMTP seam). Pair with an **external** uptime check again
 - **Seed passwords:** seed a fresh prod DB with `SEED_PASSWORD=<strong>` (else it warns + uses the
   demo `password123`). Rotate any existing logins in the Users admin.
 - **ARI password:** set a real `ARI_PASSWORD` in `pbx.env` AND `/etc/asterisk/ari.conf` (`[pbx]
-  password=`, replacing `CHANGEME_ARI_PASSWORD`) — they must match.
+  password=`, replacing `CHANGEME_ARI_PASSWORD`) — they must match. *(Path 0's installer does this for
+  you: `npm run secrets:write` generates `ARI_PASSWORD`/`AMI_PASSWORD` and fans them into
+  `ari.conf`/`manager.conf`. Run it by hand to (re)sync any time.)*
 - **Secrets at rest:** set `CRED_SECRET` (AES key for stored SIP/trunk secrets) + `AUTH_SECRET`
   (JWT). Both must be stable — rotating `CRED_SECRET` invalidates stored secrets.
 

@@ -24,7 +24,7 @@ Node ARI + AMI daemons · Claude (async + real-time), with offline mocks so test
 | Doc | For |
 |---|---|
 | **[USER-GUIDE.md](USER-GUIDE.md)** | Plain-language guide for admins and staff — how to use every screen. |
-| **[INSTALL.md](INSTALL.md)** | Install on a cloud server (public IP) or a local Debian VM. |
+| **[INSTALL.md](INSTALL.md)** | **One-command install** (Path 0), or by hand on a cloud server / local Debian VM. |
 | **[TRUNK-SETUP.md](TRUNK-SETUP.md)** | Connect a real phone-line (PSTN) provider. |
 | **[HARDENING.md](HARDENING.md)** | Production security / go-live checklist. |
 | **[CODEMAP.md](CODEMAP.md)** | Source-of-truth code navigation (every screen, process, and module). |
@@ -43,6 +43,15 @@ npm run worker   # async-AI jobs (exactly one)
 ```
 Full steps (and a cloud-server install) are in **[INSTALL.md](INSTALL.md)**.
 Starter login: `admin@pbx.local` / `password123` (change before real use).
+
+### Install it for real — one command
+On a **fresh Debian 13** host (VM, cloud instance, or bare metal), this installs *and hardens* the whole
+stack (Node, PostgreSQL, Asterisk 22, the control plane, secrets, firewall + fail2ban) unattended:
+```bash
+curl -fsSL https://raw.githubusercontent.com/ExJtac/peal/main/install.sh \
+  | sudo REPO_URL=https://github.com/ExJtac/peal.git bash
+```
+It prints the console URL + one-time admin password when done. Details: **[INSTALL.md → Path 0](INSTALL.md#path-0--one-command-install-recommended)**.
 
 > Single-tenant, local-first. Secrets live in a gitignored `.env`; run `npm run check:secrets` before
 > exposing an install. Emergency (911) calling is native in the dialplan and never depends on the app.
