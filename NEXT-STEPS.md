@@ -3,7 +3,41 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
-## ▶ RESUME HERE — Call-center suite + production hardening ("beast mode", 2026-07-21)
+## ▶ RESUME HERE — Phone fleet management DONE; production hardening QUEUED NEXT (2026-07-21)
+Shipped across 4 commits (`d15a977`→`67b40ab`). **Green: `npm run build` + 180 tests**, all verified
+LIVE against the VM (3-vendor provisioning curls + `npm run smoke:ami` reboot/resync).
+
+**Built this session (the user's asks):**
+- **Reboot / force-provision button** on `/provisioning` (per-phone + Reboot-all) — pushes a SIP
+  `check-sync` NOTIFY via **AMI** (`Action: PJSIPNotify`), which ARI can't do. New `src/telephony/ami.ts`
+  (node:net client), `src/features/provisioning/{reboot.ts,device-controls.tsx}`. Engine:
+  `asterisk/etc/manager.conf` (AMI on, ACL-locked `[pbx-ctl]`) + `pjsip_notify.conf` (`[resync]`/`[reboot]`
+  — **`Event=>` syntax, NO `[general]` section** or `res_pjsip_notify` declines to load) +
+  `res_pjsip_notify` in `build-asterisk.sh` + Lima **5038** portForward. `AMI_*` env in `.env(.example)`.
+- **Per-phone web-UI admin login + clickable link + scheduled poll** — migration `device_webadmin_poll`
+  (public only): `Device.webAdminUser/webAdminPasswordEnc`, `CompanySettings.provisioningPollHours`
+  (24 default, 0=off). Renderers push web-auth + a **tokened** re-fetch URL; `/provisioning` shows
+  `http://<phone-ip>` + creds (reveal) + Regenerate; Settings has the poll input. `src/lib/net.ts`
+  sanitizes the XFF-derived link.
+- **Yealink + Grandstream renderers** — `src/provisioning/vendors/{yealink,grandstream}.ts` +
+  `src/provisioning/filename.ts` (`macFromProvisionRequest` resolves `<mac>.cfg` / `cfg<mac>.xml`).
+  **Vendor keys (web-auth, linekey/MPK, SRTP, poll) are FLAGGED verify-on-handset** — golden tests lock
+  emitted output; adjust the renderer if a real phone rejects a key.
+
+**To make the browser reboot BUTTONS work end-to-end (mechanism already proven live via a tunnel):**
+1. `limactl stop pbx && limactl start pbx` — activates the new **5038** portForward (the buttons hit
+   `127.0.0.1:5038`). On start Lima re-copies repo confs, so `sudo sed -i 's/CHANGEME_AMI_PASSWORD/<pw>/'
+   /etc/asterisk/manager.conf` to match `AMI_PASSWORD` in `.env` (already set), then restart Asterisk.
+2. Restart the dev server (`npm run dev`) so it loads `AMI_PASSWORD`.
+3. `npm run smoke:ami -- <ext> resync` to confirm, then click Reboot/Force-provision in `/provisioning`.
+
+**➡ NEXT: production hardening (code + config, no host/cert/sudo)** — fully scoped; see the plan's
+"QUEUED FOR NEXT" + memory `pbx-hardening-queued`: CRED_SECRET rotation tooling (multi-key vault +
+`scripts/rotate-cred-secret.ts`), secrets bootstrap/audit (`gen:secrets`/`check:secrets`), trunk SRTP
+(`Trunk.mediaEncryption` → `endpointRowForTrunk`; desk SRTP already plumbed via `ctx.srtp`), ARI
+`allowed_origins` lockdown. Build tooling only — do NOT rotate live dev secrets.
+
+## ▶ EARLIER — Call-center suite + production hardening ("beast mode", 2026-07-21)
 Two full tracks shipped across 8 commits (`e03bcf3`→`0278a70`). **Green: `npm run build` + 154 tests.**
 Every piece verified LIVE against the VM daemon (4 smokes pass: `smoke:queue`, `smoke:queue -- --internal`,
 `smoke:conf`, `smoke:park`).
