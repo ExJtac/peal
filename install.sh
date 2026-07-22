@@ -85,7 +85,7 @@ phase 5  "App dependencies (npm ci)";     npm ci
 phase 6  "Generate + fan out secrets";    npm run secrets:write --silent -- --env "${PBX_DIR}/.env"
 phase 7  "Build the console";             npm run build
 phase 8  "Control-plane services";        NODE_BIN="$(command -v node)" PBX_DIR="${PBX_DIR}" PBX_USER="${PBX_USER}" RUN_BUILD=0 bash asterisk/build/install-control-plane.sh
-phase 9  "Database migrate + seed";       sudo -u "${PBX_USER}" env HOME="${PBX_DIR}" npm run setup
+phase 9  "Database migrate + seed + reconcile"; sudo -u "${PBX_USER}" env HOME="${PBX_DIR}" bash -c "cd ${PBX_DIR} && npm run setup && npm run db:reconcile"
 phase 10 "E911 notify config";            write_e911_env
 phase 11 "Harden the SIP edge";           bash asterisk/build/harden-host.sh
 

@@ -62,7 +62,8 @@ runcmd:
 the `pbx` role/database; builds Asterisk 22; co-locates the shipped configs on `127.0.0.1`, selects the
 right PostgreSQL ODBC driver for the CPU arch, and detects the LAN IP; **generates all secrets once and
 fans `ARI_PASSWORD`/`AMI_PASSWORD` into `ari.conf`/`manager.conf` so they match** (the classic manual
-footgun); runs `npm run setup` (migrate + seed + Asterisk SQL); installs the systemd services; and applies
+footgun); runs `npm run setup` (migrate + seed + Asterisk SQL) and reconciles the realtime `ps_*` rows so
+the seeded extensions are immediately registerable; installs the systemd services; and applies
 the nftables firewall + fail2ban jail. It finishes by printing the console URL and the one-time admin
 password.
 
