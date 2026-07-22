@@ -3,9 +3,27 @@
 **Resume here.** Full detail in `BUILD-PLAN.md`; navigation in `CODEMAP.md`; conventions in
 `CLAUDE.md`. Working dir: `/Users/jamesai/Desktop/claude/pbx/`.
 
-## ▶ RESUME HERE — Phone fleet management DONE; production hardening QUEUED NEXT (2026-07-21)
-Shipped across 4 commits (`d15a977`→`67b40ab`). **Green: `npm run build` + 180 tests**, all verified
-LIVE against the VM (3-vendor provisioning curls + `npm run smoke:ami` reboot/resync).
+## ▶ RESUME HERE — Phone fleet management + code/config hardening DONE (2026-07-21)
+Two tracks shipped across 9 commits (`d15a977`→`30427cd`). **Green: `npm run build` + 186 tests**, verified
+LIVE against the VM. **➡ Genuine remaining work is now the operator/infra steps at the bottom** (flip the
+reboot buttons live; live PSTN; deferred infra hardening) — the code+config work is complete.
+
+### Code/config hardening (this session, 4 commits `5be33c2`→`30427cd`)
+- **CRED_SECRET rotation tooling** (`5be33c2`): `crypto-vault.ts` is now a lazy multi-key ring (encrypt=primary
+  `CRED_SECRET`, decrypt tries `CRED_SECRET_OLD` fallbacks; `tryDecryptSecret`). `npm run rotate:cred-secret
+  [-- --dry-run]` re-encrypts the 5 encrypted columns, idempotent. Rotating no longer orphans data. **Do NOT
+  rotate live dev secrets** (per CLAUDE.md) — tooling + dry-run are the proof.
+- **Secrets bootstrap/audit** (`4af63b5`): `npm run gen:secrets` (prints, never writes `.env`) + `npm run
+  check:secrets` (FAILs on unset/dev-default/short app secrets; warns on ari.conf/seed sync).
+- **Trunk SRTP** (`521e830`): `Trunk.mediaEncryption` (NONE/SDES/DTLS, migration public-only) →
+  `media_encryption` on the trunk endpoint; admin picker; `[transport-wss]` stanza completed (cert-gated).
+- **ARI lockdown** (`30427cd`): `ari.conf allowed_origins * → app origin` (safe — the daemon sends no Origin;
+  applied to the VM + reloaded, ARI stayed connected).
+
+### Phone fleet management (earlier this session, 4 commits `d15a977`→`67b40ab`)
+Reboot/force-provision button (AMI `PJSIPNotify`, `src/telephony/ami.ts` + `manager.conf`/`pjsip_notify.conf`),
+per-phone web-UI creds + clickable link + scheduled poll (`device_webadmin_poll` migration), and
+Yealink/Grandstream renderers (`macFromProvisionRequest`). Vendor keys flagged verify-on-handset.
 
 **Built this session (the user's asks):**
 - **Reboot / force-provision button** on `/provisioning` (per-phone + Reboot-all) — pushes a SIP
@@ -31,11 +49,18 @@ LIVE against the VM (3-vendor provisioning curls + `npm run smoke:ami` reboot/re
 2. Restart the dev server (`npm run dev`) so it loads `AMI_PASSWORD`.
 3. `npm run smoke:ami -- <ext> resync` to confirm, then click Reboot/Force-provision in `/provisioning`.
 
-**➡ NEXT: production hardening (code + config, no host/cert/sudo)** — fully scoped; see the plan's
-"QUEUED FOR NEXT" + memory `pbx-hardening-queued`: CRED_SECRET rotation tooling (multi-key vault +
-`scripts/rotate-cred-secret.ts`), secrets bootstrap/audit (`gen:secrets`/`check:secrets`), trunk SRTP
-(`Trunk.mediaEncryption` → `endpointRowForTrunk`; desk SRTP already plumbed via `ctx.srtp`), ARI
-`allowed_origins` lockdown. Build tooling only — do NOT rotate live dev secrets.
+**➡ GENUINE NEXT — operator / infra steps (no more code queued):**
+1. **Flip the reboot buttons live** — the 3-step VM+dev restart above (proven via a tunnel; just needs the
+   5038 portForward active).
+2. **Live PSTN** — still user-gated on a REGISTER ITSP account (code complete; `TRUNK-SETUP.md`). Now that
+   trunk SRTP exists, a TLS trunk can set `mediaEncryption=SDES` once a cert is in place.
+3. **Physical-phone verification** — actual reboot/web-cred adoption + exact Yealink/Grandstream/Fanvil keys
+   (web-auth, linekey/MPK, SRTP, poll) against a real handset; re-lock the golden tests to whatever works.
+4. **Deferred infra hardening (needs a host / cert / sudo — out of the code+config scope):** run
+   `install-control-plane.sh` (systemd) on a prod box; install fail2ban + firewall; get a real cert →
+   uncomment `[transport-tls]`/`[transport-wss]` + `http.conf` TLS to actually encrypt SIP signaling; bind
+   `http.conf` to loopback; the outbound-WS ARI model. `HARDENING.md` is the runbook. Before go-live run
+   `npm run check:secrets` (and `gen:secrets` for strong values).
 
 ## ▶ EARLIER — Call-center suite + production hardening ("beast mode", 2026-07-21)
 Two full tracks shipped across 8 commits (`e03bcf3`→`0278a70`). **Green: `npm run build` + 154 tests.**
