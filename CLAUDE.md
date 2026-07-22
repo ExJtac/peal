@@ -91,5 +91,6 @@ npm install && npm run db:deploy && npm run db:seed
 - **Swappable provider seams with offline mocks** (`src/ai/providers/*`, the ARI/engine seam).
 - **`CODEMAP.md` is the source of truth for navigation** — update it in the same step as any
   feature/module added, moved, or removed.
-- **Local keys stay in gitignored `.env`.** Local-only app; no key rotation until shared
-  externally.
+- **Local keys stay in gitignored `.env`.** Local-only app; rotation *tooling* exists
+  (`npm run rotate:cred-secret`, `npm run gen:secrets`/`check:secrets`) but live-key rotation is
+  deferred until the app is shared externally — don't rotate dev secrets for its own sake.

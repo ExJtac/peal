@@ -153,7 +153,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | File | Responsibility |
 |---|---|
 | `db.ts` · `env.ts` · `queue.ts` · `heartbeat.ts` | Prisma+pg singleton · typed env · AiJob queue · heartbeat wrapper |
-| `auth.ts` · `guards.ts` · `password.ts` · `crypto-vault.ts` | JWT session · role guards · bcrypt · AES-256-GCM vault |
+| `auth.ts` · `guards.ts` · `password.ts` · `crypto-vault.ts` | JWT session · role guards · bcrypt · AES-256-GCM vault (**multi-key: encrypt=primary `CRED_SECRET`, decrypt tries `CRED_SECRET_OLD` fallbacks; `tryDecryptSecret` + `rotate:cred-secret` for safe rotation**) |
 | `phone.ts` · `guardrail.ts` · `businessHours.ts` · `e911.ts` · `ids.ts` · `callForward.ts` · `health.ts` · `loginThrottle.ts` · `net.ts` | dial classify/pattern · toll-fraud engine · time rules · emergency rules · channel/MAC helpers · call-forward parse/serialize · **control-plane health verdict** (pure; drives the health-alert timer) · **XFF→safe host** (phone web-link sanitizer) |
 | `src/components/sidebar.tsx` | admin nav (client, active link) |
 
@@ -167,6 +167,8 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/ai-smoke.ts` | **opt-in live** AI-receptionist end-to-end (routes a real call → agent → verifies media loop + clean teardown) |
 | `scripts/pstn-smoke.ts` | **opt-in live** outbound-PSTN check (`npm run smoke:pstn -- +1NUMBER [trunk]`): originates a real call out a trunk, watches Ringing→Up, prints pass/fail + inbound checklist |
 | `scripts/queue-smoke.ts` / `conference-smoke.ts` / `parking-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
+| `scripts/ami-smoke.ts` | **opt-in live** AMI check (`npm run smoke:ami -- <ext> resync\|reboot`): login + PJSIPNotify to a phone endpoint |
+| `scripts/rotate-cred-secret.ts` | re-encrypt at-rest secrets to a new `CRED_SECRET` (`npm run rotate:cred-secret [-- --dry-run]`) — multi-key, idempotent, reports per-column counts |
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
