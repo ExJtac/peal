@@ -133,8 +133,9 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 |---|---|
 | `renderer.ts` · `registry.ts` · `context.ts` | `DeviceRenderer` interface (+ `webAdmin`/`provisioningUrl`/`pollHours`/`srtp`) + vendor dispatch + DB-backed config context (decrypts web-admin pw, tokened poll URL) |
 | `vendors/fanvil.ts` | Fanvil config (header + SIP account + BLF keys + **web-admin login** + **scheduled-poll repeat** + SRTP-when-set) — golden-tested |
-| `secrets.ts` · `sipPnp.ts` | per-MAC HMAC token + SIP-PnP parse/response helpers |
-| `vendors/{yealink,grandstream,poly}.ts` | `[later]` — same interface |
+| `secrets.ts` · `sipPnp.ts` · `filename.ts` | per-MAC HMAC token + SIP-PnP parse/response helpers + **`macFromProvisionRequest`** (resolves each vendor's request filename — `<mac>.cfg` / `cfg<mac>.xml` — to the MAC; used by `/provision/[mac]`) |
+| `vendors/yealink.ts` · `vendors/grandstream.ts` | Yealink flat-cfg + Grandstream P-value XML renderers (SIP + transport/SRTP + web-admin + poll + fn-keys) — golden-tested; vendor keys flagged for handset verification |
+| `vendors/poly.ts` | `[later]` — same interface |
 
 ## Async AI (`src/ai/`) — worker-safe
 | File | Responsibility |

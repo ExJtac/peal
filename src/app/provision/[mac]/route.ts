@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { normalizeMac } from "@/lib/ids";
+import { macFromProvisionRequest } from "@/provisioning/filename";
 import { verifyProvisioningToken } from "@/provisioning/secrets";
 import { loadProvisioning } from "@/provisioning/context";
 import { getRenderer } from "@/provisioning/registry";
@@ -8,10 +8,12 @@ import { getRenderer } from "@/provisioning/registry";
 export const dynamic = "force-dynamic";
 
 // Serves a phone its per-MAC config over HTTP(S). Guarded by a per-device token so one phone
-// can't fetch another's SIP credentials. Phones request "<mac>.cfg?token=…".
+// can't fetch another's SIP credentials. Phones request their vendor's filename — "<mac>.cfg"
+// (Fanvil/Yealink) or "cfg<mac>.xml" (Grandstream) — all resolved to the MAC here.
 export async function GET(req: NextRequest, ctx: { params: Promise<{ mac: string }> }) {
   const { mac: raw } = await ctx.params;
-  const mac = normalizeMac(raw.replace(/\.cfg$/i, ""));
+  const mac = macFromProvisionRequest(raw);
+  if (!mac) return new Response("Not found", { status: 404 });
   const token = req.nextUrl.searchParams.get("token") ?? "";
 
   if (!verifyProvisioningToken(mac, token)) return new Response("Forbidden", { status: 403 });
