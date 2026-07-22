@@ -46,3 +46,14 @@ Starter login: `admin@pbx.local` / `password123` (change before real use).
 
 > Single-tenant, local-first. Secrets live in a gitignored `.env`; run `npm run check:secrets` before
 > exposing an install. Emergency (911) calling is native in the dialplan and never depends on the app.
+
+## License
+
+**Peal** is free, open-source software licensed under the **[GNU Affero General Public License v3.0](LICENSE)**
+(`AGPL-3.0-or-later`). You may run, study, modify, and self-host it freely. Under the AGPL, if you
+distribute a modified version **or offer it to others over a network as a service**, you must release
+your source changes under the same license — which keeps Peal, and everything built on it, free for
+everyone.
+
+Copyright © 2026 [ExJtac](https://github.com/ExJtac). Paid installation and support are offered
+separately; the software itself is, and stays, free.
