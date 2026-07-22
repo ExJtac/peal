@@ -169,6 +169,7 @@ injected as paced RTP, with barge-in. Mock-default (free); real providers opt-in
 | `scripts/queue-smoke.ts` / `conference-smoke.ts` / `parking-smoke.ts` | **opt-in live** ACD check (`npm run smoke:queue`): routes a real call → QUEUE, verifies held-on-MOH-bridge + QueueCallLog + abandon-on-hangup |
 | `scripts/ami-smoke.ts` | **opt-in live** AMI check (`npm run smoke:ami -- <ext> resync\|reboot`): login + PJSIPNotify to a phone endpoint |
 | `scripts/rotate-cred-secret.ts` | re-encrypt at-rest secrets to a new `CRED_SECRET` (`npm run rotate:cred-secret [-- --dry-run]`) — multi-key, idempotent, reports per-column counts |
+| `scripts/gen-secrets.ts` · `scripts/check-secrets.ts` | `npm run gen:secrets` prints strong secrets (never writes `.env`); `npm run check:secrets` audits secrets (FAILs on unset/dev-default/short, warns on ari.conf/seed sync) |
 | `scripts/backup-db.sh` | `pg_dump` of the whole `pbx` DB (BOTH schemas) + retention prune; run by `pbx-backup.timer` or `npm run backup` |
 | `scripts/health-check.ts` | control-plane health probe → alert/recovery email via the email seam (marker-deduped); `pbx-health.timer` or `npm run health:check` |
 | `scripts/guard-reset.ts` | refuses a prisma reset when schema `asterisk` has tables (footgun guard); `npm run db:reset` runs it first |
